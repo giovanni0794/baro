@@ -5,8 +5,82 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>BARO</title>
   <link rel="stylesheet" href="style.css" />
-  <body style="text-align: center;">
-  </body>
+  <style>
+    body {
+      text-align: center;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background: #333;
+      color: #fff;
+      padding: 1em;
+    }
+
+    nav a {
+      color: #fff;
+      margin: 0 10px;
+      text-decoration: none;
+    }
+
+    main {
+      padding: 2em;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      max-width: 400px;
+      margin: 0 auto;
+      text-align: left;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    input,
+    textarea {
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    button {
+      padding: 10px;
+      background-color: #333;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #555;
+    }
+
+    #status-message {
+      margin-top: 15px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    footer {
+      background: #f1f1f1;
+      padding: 1em;
+      margin-top: 2em;
+    }
+  </style>
 </head>
 <body>
   <header>
@@ -18,27 +92,35 @@
       <a href="contact.html">Contact</a>
     </nav>
   </header>
-    <main>
-        <section class="contact-section">
-            <h2>Contact Us</h2>
-            <form action="mailto:info@baro.com" method="post" enctype="text/plain">
-                <label for="name">Name:</label>
-                <input type="text" id="name" name="name" required />
 
-                </p><label for="email">Email:</label>
-                <input type="email" id="email" name="email" required />
+  <main>
+    <section class="contact-section">
+      <h2>Contact Us</h2>
+      <form id="contact-form">
+        <div class="form-group">
+          <label for="name">Name:</label>
+          <input type="text" id="name" name="user_name" required />
+        </div>
 
-                <p><label for="message">Message:</label>
-                <p><textarea id="message" name="message" rows="5" required></textarea>
+        <div class="form-group">
+          <label for="email">Email:</label>
+          <input type="email" id="email" name="user_email" required />
+        </div>
 
-                <p><button type="submit">Send</button>
-            </form>
-            <div class="contact-info">
-                <p>Servicing Location: Anchorage, AK</p>
-            </div>
-        </section>
-    </main>
-    <footer>
-        <p>&copy; 2025 Baro. All rights reserved.</p>
-    </footer>
-</body>
+        <div class="form-group">
+          <label for="message">Message:</label>
+          <textarea id="message" name="message" rows="5" required></textarea>
+        </div>
+
+        <button type="submit">Send</button>
+      </form>
+
+      <!-- Status message will appear here -->
+      <p id="status-message"></p>
+
+      <div class="contact-info">
+        <p>Servicing Location: Anchorage, AK</p>
+      </div>
+    </section>
+  </m
+  <footer>© 2025 Baro</footer>
