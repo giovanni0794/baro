@@ -59,16 +59,16 @@
       grid.parentElement.appendChild(p)
     } else {
       for (const item of data) {
-        const a = document.createElement('a')
-        a.className = 'card'
-        a.href = '#'
-        a.innerHTML = `
-          <h4>${item.title}</h4>
-          <p>${item.category}</p>
-          <p>$${(item.base_price_cents / 100).toFixed(2)}/day</p>
-        `
-        grid.appendChild(a)
-      }
+    const a = document.createElement('a');
+    a.className = 'card';
+    a.href = `listing.html?id=${encodeURIComponent(item.id)}`;
+    a.innerHTML = `
+      <h4>${item.title}</h4>
+      <p class="muted">${item.category}</p>
+      <p>$${(item.base_price_cents / 100).toFixed(2)}/day</p>
+    `;
+    grid.appendChild(a);
+  }
     }
   </script>
 </body>

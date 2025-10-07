@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BARO • Listing</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    main { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
+    .panel { background: var(--light, #fff); padding: 1rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08); margin-bottom: 1rem; }
+    .row { display:flex; gap:1rem; flex-wrap:wrap; }
+    .row > * { flex:1 1 300px; }
+    label { display:block; margin:.5rem 0 .25rem; font-weight:600; }
+    input { width:100%; padding:.6rem; border:1px solid #ccc; border-radius:6px; box-sizing:border-box; }
+    .muted { color:#555; font-size:.9rem; }
+    .price { font-size:1.25rem; font-weight:700; }
+    .actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+    button { background:var(--accent); color:#fff; border:none; border-radius:6px; padding:.6rem 1rem; cursor:pointer; }
+    .note { text-align:center; padding:.75rem; }
+  </style>
+</head>
+<body>
+  <div id="header"></div>
+  <script>fetch("header.html").then(r=>r.text()).then(html=>{ document.getElementById("header").innerHTML = html })</script>
+
+  <main>
+    <a href="rentals.html" class="muted">← Back to all rentals</a>
+
+    <section class="panel" id="listing">
+      <h2 id="title">Loading…</h2>
+      <p class="muted" id="category"></p>
+      <p class="price" id="price"></p>
+      <p id="description"></p>
+      <p class="muted" id="meta"></p>
+    </section>
+
+    <section class="panel">
+      <h3>Reserve</h3>
+      <div class="row">
+        <div>
+          <label for="start">Start date</label>
+          <input type="date" id="start" />
+        </div>
+        <div>
+          <label for="end">End date</label>
+          <input type="date" id="end" />
+        </div>
+      </div>
+      <p class="muted" id="calc">Select dates to see total.</p>
+      <div class="actions">
+        <button id="btn-hold">Hold & continue</button>
+        <button id="btn-paypal" class="secondary" style="background:#444">PayPal (later)</button>
+        <button id="btn-venmo" class="secondary" style="background:#444">Venmo (later)</button>
+      </div>
+      <p class="muted">Payments aren’t wired yet. Next steps will create the reservations table, block dates, and confirm after payment.</p>
+    </section>
+  </main>
+
+  <footer><p>Servicing Location: Anchorage, AK</p><p>© 2025 Baro</p></footer>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+    const SUPABASE_URL = 'https://lxplphqfkdvjtphafcyt.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cGxwaHFma2R2anRwaGFmY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDAxOTQsImV4cCI6MjA3NTQxNjE5NH0.cRm0HrVuhEgALHiyOtlMQWMvDcFXFaBZvBOysshpzjU'
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    const params = new URLSearchParams(location.search)
+    const id = params.get('id')
+
+    const $ = (id) => document.getElementById(id)
+    const titleEl = $('title'), catEl = $('category'), priceEl = $('price'), descEl = $('description'), metaEl = $('meta')
+    const startEl = $('start'), endEl = $('end'), calcEl = $('calc')
+
+    // Date input mins
+    const today = new Date()
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
+    startEl.min = todayStr; endEl.min = todayStr
+
+    if (!id) {
+      titleEl.textContent = 'Listing not found'
+      descEl.textContent = 'Missing id parameter.'
+    } else {
+      const { data, error } = await supabase.from('listings').select('*').eq('id', id).single()
+      if (error || !data) {
+        titleEl.textContent = 'Listing not found'
+        descEl.textContent = 'This item may have been unpublished or removed.'
+      } else {
+        titleEl.textContent = data.title
+        catEl.textContent = data.category
+        priceEl.textContent = `$${(data.base_price_cents/100).toFixed(2)}/day`
+        descEl.textContent = data.description || ''
+        metaEl.textContent = `Max advance booking: ${data.max_advance_months} months • ${data.paused ? 'Paused' : 'Active'}`
+      }
+    }
+
+    function nightsBetween(a,b){ return Math.max(0, Math.round((b-a)/(24*60*60*1000))) }
+    function recalc(){
+      if (!startEl.value || !endEl.value) { calcEl.textContent='Select dates to see total.'; return }
+      const s=new Date(startEl.value+'T00:00:00'); const e=new Date(endEl.value+'T00:00:00')
+      if (e<=s){ calcEl.textContent='End date must be after start date.'; return }
+      const nights = nightsBetween(s,e)
+      const pricePerDay = parseFloat(priceEl.textContent.replace(/[^\d.]/g,'')) || 0
+      calcEl.textContent = `${nights} night(s) • Estimated: $${(nights*pricePerDay).toFixed(2)}`
+    }
+    startEl.addEventListener('change', ()=>{ endEl.min = startEl.value || todayStr; recalc() })
+    endEl.addEventListener('change', recalc)
+
+    // Placeholder actions
+    document.getElementById('btn-hold').addEventListener('click', async () => {
+  // must be signed in (for now). If not, punt them to admin.html to sign in.
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) { alert('Please sign in first (use the Admin page for now), then try again.'); return; }
+
+  if (!startEl.value || !endEl.value) { alert('Pick start and end dates.'); return; }
+
+  const s = new Date(startEl.value + 'T00:00:00');
+  const e = new Date(endEl.value + 'T00:00:00');
+  if (e <= s) { alert('End date must be after start date.'); return; }
+
+  // simple max-advance check using the meta we loaded
+  const maxMonths = parseInt((metaEl.textContent.match(/Max advance booking:\s*(\d+)/)||[])[1] || '6', 10);
+  const latest = new Date(); latest.setMonth(latest.getMonth() + maxMonths);
+  if (s > latest) { alert(`Start date is beyond the allowed ${maxMonths} month window.`); return; }
+
+  const nights = Math.max(0, Math.round((e - s) / (24*60*60*1000)));
+  if (nights === 0) { alert('Minimum stay is 1 night.'); return; }
+
+  // price from page
+  const pricePerDay = parseFloat(priceEl.textContent.replace(/[^\d.]/g,'')) || 0;
+  const amount_cents = Math.round(nights * pricePerDay * 100);
+
+  // insert reservation (pending)
+  const { error } = await supabase.from('reservations').insert({
+    listing_id: parseInt(id, 10),
+    renter_id: user.id,
+    start_date: startEl.value,  // yyyy-mm-dd
+    end_date: endEl.value,      // yyyy-mm-dd
+    amount_cents,
+    status: 'pending'
+  });
+
+  if (error) {
+    // overlap constraint => 23P01
+    if (error.code === '23P01') {
+      alert('Those dates are no longer available. Pick different dates.');
+    } else {
+      alert('Could not create reservation: ' + error.message);
+    }
+    return;
+  }
+
+  alert('Dates held as pending. Next step: payment confirmation flow.');
+  // later: redirect to checkout page with reservation id
+});
+
+    document.getElementById('btn-paypal').addEventListener('click', ()=>alert('PayPal flow coming soon'))
+    document.getElementById('btn-venmo').addEventListener('click', ()=>alert('Venmo flow coming soon'))
+  </script>
+</body>
+</html>
