@@ -27,6 +27,25 @@
     fetch("header.html").then(r=>r.text()).then(html=>{ document.getElementById("header").innerHTML = html; });
   </script>
 
+<!-- Owner Reservations -->
+<div class="panel hidden" id="owner-res-panel">
+  <h3>Reservations for your listings</h3>
+  <p class="muted">Pending holds show here. Confirm after payment or cancel to free the dates.</p>
+  <div id="resv-empty" class="muted">No reservations yet.</div>
+  <table id="resv-table" class="hidden" style="width:100%; border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th style="text-align:left; padding:.4rem;">Listing</th>
+        <th style="text-align:left; padding:.4rem;">Dates</th>
+        <th style="text-align:left; padding:.4rem;">Amount</th>
+        <th style="text-align:left; padding:.4rem;">Status</th>
+        <th style="text-align:left; padding:.4rem;">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="resv-body"></tbody>
+  </table>
+</div>
+
   <main>
     <h2 style="text-align:center">Admin • Add Listings</h2>
 
@@ -256,6 +275,91 @@
         $('paused').checked = false
       }
     })
+
+    // ------- Owner reservations: list + confirm/cancel -------
+const ownerResPanel = document.getElementById('owner-res-panel');
+const resvEmpty = document.getElementById('resv-empty');
+const resvTable = document.getElementById('resv-table');
+const resvBody = document.getElementById('resv-body');
+
+function fmtDate(d){ return new Date(d).toLocaleDateString(); }
+function fmtMoney(c){ return `$${(c/100).toFixed(2)}`; }
+
+async function loadOwnerReservations() {
+  // Policies already restrict rows to listings you own
+  const { data, error } = await supabase
+    .from('reservations')
+    .select('id, start_date, end_date, amount_cents, status, listing_id, listings(title)')
+    .order('created_at', { ascending:false });
+
+  if (error) {
+    resvEmpty.textContent = 'Error loading reservations.';
+    resvTable.classList.add('hidden');
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    resvEmpty.textContent = 'No reservations yet.';
+    resvTable.classList.add('hidden');
+    return;
+  }
+
+  resvEmpty.textContent = '';
+  resvTable.classList.remove('hidden');
+  resvBody.innerHTML = '';
+
+  for (const r of data) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="padding:.4rem;">${r.listings?.title || 'Listing #'+r.listing_id}</td>
+      <td style="padding:.4rem;">${fmtDate(r.start_date)} → ${fmtDate(r.end_date)}</td>
+      <td style="padding:.4rem;">${fmtMoney(r.amount_cents)}</td>
+      <td style="padding:.4rem;">${r.status}</td>
+      <td style="padding:.4rem;">
+        <button class="confirm" data-id="${r.id}" ${r.status!=='pending' ? 'disabled' : ''}>Confirm</button>
+        <button class="cancel secondary" data-id="${r.id}" ${r.status==='cancelled' ? 'disabled' : ''}>Cancel</button>
+      </td>
+    `;
+    resvBody.appendChild(tr);
+  }
+
+  // wire buttons
+  resvBody.querySelectorAll('button.confirm').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      const id = parseInt(e.currentTarget.dataset.id,10);
+      e.currentTarget.disabled = true;
+      const { error } = await supabase.from('reservations').update({ status: 'confirmed' }).eq('id', id);
+      if (error) { alert('Confirm failed: ' + error.message); e.currentTarget.disabled = false; return; }
+      await loadOwnerReservations();
+      alert('Reservation confirmed.');
+    });
+  });
+
+  resvBody.querySelectorAll('button.cancel').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      const id = parseInt(e.currentTarget.dataset.id,10);
+      e.currentTarget.disabled = true;
+      const { error } = await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', id);
+      if (error) { alert('Cancel failed: ' + error.message); e.currentTarget.disabled = false; return; }
+      await loadOwnerReservations();
+      alert('Reservation cancelled.');
+    });
+  });
+}
+
+// show the panel only for lenders/admins (we already have gate())
+const _oldGate = gate;
+gate = function(profile){
+  _oldGate(profile);
+  if (profile?.is_admin || profile?.is_lender) {
+    ownerResPanel.classList.remove('hidden');
+    loadOwnerReservations();
+  } else {
+    ownerResPanel.classList.add('hidden');
+  }
+};
+
+  
   </script>
 </body>
 </html>
