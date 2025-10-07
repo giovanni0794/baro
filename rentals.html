@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BARO • Rentals</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* tiny helper so empty/error messages don’t look sad */
+    .note { text-align:center; padding:0.75rem; }
+  </style>
+</head>
+<body>
+  <!-- Reusable header -->
+  <div id="header"></div>
+  <script>
+    fetch("header.html").then(r => r.text()).then(html => { document.getElementById("header").innerHTML = html });
+  </script>
+
+  <main>
+    <section class="hero">
+      <h2>All Rentals</h2>
+      <p>Select a listing to see details and availability.</p>
+    </section>
+
+    <section class="categories">
+      <h3 style="text-align:center;">Browse Everything</h3>
+      <div class="grid" id="rentals-grid"></div>
+    </section>
+  </main>
+
+  <footer><p>Servicing Location: Anchorage, AK</p><p>© 2025 Baro</p></footer>
+
+  <!-- Load listings from Supabase -->
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+    const SUPABASE_URL = 'https://lxplphqfkdvjtphafcyt.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cGxwaHFma2R2anRwaGFmY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDAxOTQsImV4cCI6MjA3NTQxNjE5NH0.cRm0HrVuhEgALHiyOtlMQWMvDcFXFaBZvBOysshpzjU'
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    const grid = document.getElementById('rentals-grid')
+
+    const { data, error } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('paused', false)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      const p = document.createElement('p')
+      p.className = 'note'
+      p.textContent = 'Error loading listings.'
+      grid.parentElement.appendChild(p)
+    } else if (!data?.length) {
+      const p = document.createElement('p')
+      p.className = 'note'
+      p.textContent = 'No listings yet.'
+      grid.parentElement.appendChild(p)
+    } else {
+      for (const item of data) {
+        const a = document.createElement('a')
+        a.className = 'card'
+        a.href = '#'
+        a.innerHTML = `
+          <h4>${item.title}</h4>
+          <p>${item.category}</p>
+          <p>$${(item.base_price_cents / 100).toFixed(2)}/day</p>
+        `
+        grid.appendChild(a)
+      }
+    }
+  </script>
+</body>
+</html>

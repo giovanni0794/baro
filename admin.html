@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BARO • Admin</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    main { padding:2rem 1rem; max-width:900px; margin:0 auto; }
+    .panel { background:var(--light, #fff); padding:1rem; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.08); margin-bottom:1rem; }
+    .row { display:flex; gap:1rem; flex-wrap:wrap; }
+    .row > * { flex:1 1 300px; }
+    label { display:block; margin:.5rem 0 .25rem; font-weight:600; }
+    input, select, textarea { width:100%; padding:.6rem; border:1px solid #ccc; border-radius:6px; box-sizing:border-box; }
+    button { background:var(--accent); color:#fff; border:none; border-radius:6px; padding:.6rem 1rem; cursor:pointer; }
+    button.secondary { background:#444; }
+    .muted { color:#555; font-size:.9rem; }
+    .success { color:green; font-weight:600; }
+    .error { color:#b00020; font-weight:600; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <!-- Reusable header -->
+  <div id="header"></div>
+  <script>
+    fetch("header.html").then(r=>r.text()).then(html=>{ document.getElementById("header").innerHTML = html; });
+  </script>
+
+  <main>
+    <h2 style="text-align:center">Admin • Add Listings</h2>
+
+    <!-- Auth Panel -->
+    <div class="panel" id="auth-panel">
+      <h3>Sign in</h3>
+      <p class="muted">Use your admin account. Password auth keeps this simple.</p>
+      <div class="row">
+        <div>
+          <label for="email">Email</label>
+          <input id="email" type="email" placeholder="you@example.com" />
+        </div>
+        <div>
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="••••••••" />
+        </div>
+      </div>
+      <div style="margin-top:.75rem; display:flex; gap:.5rem;">
+        <button id="btn-signin">Sign in</button>
+        <button id="btn-signup" class="secondary">Sign up (first time)</button>
+      </div>
+      <p id="auth-status" class="muted" style="margin-top:.5rem;"></p>
+    </div>
+
+    <!-- Session Panel -->
+    <div class="panel hidden" id="session-panel">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <strong>Signed in:</strong> <span id="whoami"></span>
+          <span id="profile-state" class="muted"></span>
+        </div>
+        <button id="btn-signout" class="secondary">Sign out</button>
+      </div>
+    </div>
+
+    <!-- Not authorized notice -->
+    <div class="panel hidden" id="notauth-panel">
+      <p class="error">You’re signed in but not authorized to create listings. Ask an admin to set your account as a lender.</p>
+      <p class="muted">Tip: after signing up once, run the one-liner to set <code>is_admin</code> and <code>is_lender</code>.</p>
+    </div>
+
+    <!-- Add Listing -->
+    <div class="panel hidden" id="add-panel">
+      <h3>New Listing</h3>
+      <div class="row">
+        <div>
+          <label for="title">Title</label>
+          <input id="title" placeholder="Starlink Gen 2 Kit" />
+        </div>
+        <div>
+          <label for="category">Category</label>
+          <select id="category">
+            <option>Tech</option>
+            <option>Recreation</option>
+            <option>Vehicles</option>
+            <option>Excursions</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+
+      <label for="description">Description</label>
+      <textarea id="description" rows="4" placeholder="Dish, router, cables, backpack..."></textarea>
+
+      <div class="row">
+        <div>
+          <label for="price">Base price (USD per day)</label>
+          <input id="price" type="number" step="0.01" placeholder="30.00" />
+        </div>
+        <div>
+          <label for="maxMonths">Max advance booking (months)</label>
+          <input id="maxMonths" type="number" min="1" max="24" value="15" />
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+          <label style="display:flex; gap:.5rem; align-items:center;">
+            <input id="paused" type="checkbox" />
+            Pause this listing
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-top:1rem;">
+        <button id="btn-create">Create listing</button>
+        <span id="create-status" class="muted" style="margin-left:.5rem;"></span>
+      </div>
+    </div>
+
+    <p class="muted" style="text-align:center; margin-top:1rem;">
+      Note: global pause and blackout controls come next. This page is just for creating listings with the rules we already set up in the database.
+    </p>
+  </main>
+
+  <!-- Supabase: module import -->
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+    // Your real project values (from Supabase → Settings → API)
+    const SUPABASE_URL = 'https://lxplphqfkdvjtphafcyt.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cGxwaHFma2R2anRwaGFmY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDAxOTQsImV4cCI6MjA3NTQxNjE5NH0.cRm0HrVuhEgALHiyOtlMQWMvDcFXFaBZvBOysshpzjU'
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    const $ = (id) => document.getElementById(id)
+    const authPanel = $('auth-panel')
+    const sessionPanel = $('session-panel')
+    const addPanel = $('add-panel')
+    const notAuth = $('notauth-panel')
+    const whoami = $('whoami')
+    const profileState = $('profile-state')
+    const authStatus = $('auth-status')
+
+    function showSignedIn(user) {
+      authPanel.classList.add('hidden')
+      sessionPanel.classList.remove('hidden')
+      whoami.textContent = user.email
+    }
+    function showSignedOut() {
+      authPanel.classList.remove('hidden')
+      sessionPanel.classList.add('hidden')
+      addPanel.classList.add('hidden')
+      notAuth.classList.add('hidden')
+      authStatus.textContent = ''
+    }
+
+    async function ensureProfile(user) {
+      // Upsert profile so RLS policies pass (owner-only writes).
+      await supabase.from('profiles').upsert(
+        { id: user.id, display_name: user.email },
+        { onConflict: 'id' }
+      )
+    }
+
+    async function loadProfile(user) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('is_admin,is_lender,paused_global')
+        .eq('id', user.id)
+        .single()
+      if (error) {
+        profileState.textContent = ' • profile error'
+        return null
+      }
+      profileState.textContent = data.paused_global ? ' • global pause ON' : ' • global pause OFF'
+      return data
+    }
+
+    function gate(profile) {
+      // Only show Add Listing if user is lender or admin
+      if (profile?.is_admin || profile?.is_lender) {
+        addPanel.classList.remove('hidden')
+        notAuth.classList.add('hidden')
+      } else {
+        addPanel.classList.add('hidden')
+        notAuth.classList.remove('hidden')
+      }
+    }
+
+    // On load: detect existing session
+    {
+      const { data: { session} } = await supabase.auth.getSession()
+      if (session?.user) {
+        showSignedIn(session.user)
+        await ensureProfile(session.user)
+        const p = await loadProfile(session.user)
+        gate(p)
+      } else {
+        showSignedOut()
+      }
+    }
+
+    // Sign in / up / out
+    $('btn-signin').addEventListener('click', async () => {
+      const email = $('email').value.trim()
+      const password = $('password').value
+      authStatus.textContent = 'Signing in...'
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      authStatus.textContent = error ? `Error: ${error.message}` : 'Signed in.'
+      if (!error) {
+        showSignedIn(data.user)
+        await ensureProfile(data.user)
+        const p = await loadProfile(data.user)
+        gate(p)
+      }
+    })
+
+    $('btn-signup').addEventListener('click', async () => {
+      const email = $('email').value.trim()
+      const password = $('password').value
+      authStatus.textContent = 'Creating account...'
+      const { error } = await supabase.auth.signUp({ email, password })
+      authStatus.textContent = error ? `Error: ${error.message}` : 'Account created. Check email to confirm, then sign in.'
+    })
+
+    $('btn-signout').addEventListener('click', async () => {
+      await supabase.auth.signOut()
+      showSignedOut()
+    })
+
+    // Create listing
+    $('btn-create').addEventListener('click', async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { $('create-status').textContent = 'Please sign in first.'; return }
+
+      const title = $('title').value.trim()
+      const category = $('category').value
+      const description = $('description').value.trim()
+      const dollars = parseFloat($('price').value)
+      const base_price_cents = Math.round((isNaN(dollars) ? 0 : dollars) * 100)
+      const max_advance_months = parseInt($('maxMonths').value || '6', 10)
+      const paused = $('paused').checked
+
+      if (!title || base_price_cents <= 0) {
+        $('create-status').textContent = 'Title and valid price required.'; return
+      }
+
+      $('create-status').textContent = 'Saving...'
+      const { error } = await supabase.from('listings').insert({
+        owner_id: user.id, title, description, category,
+        base_price_cents, max_advance_months, paused
+      })
+
+      $('create-status').textContent = error ? `Error: ${error.message}` : 'Created ✅'
+      if (!error) {
+        $('title').value = ''
+        $('description').value = ''
+        $('price').value = ''
+        $('paused').checked = false
+      }
+    })
+  </script>
+</body>
+</html>
