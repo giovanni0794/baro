@@ -7,26 +7,13 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
-    <h1>BARO</h1>
-    <nav>
-      <a href="index.html">Home</a>
-
-      <div class="dropdown">
-        <a href="rentals.html" class="dropbtn">Rentals ▾</a>
-        <div class="dropdown-content">
-          <a href="tech.html">Tech (Starlink, Mobile Power, Drones, etc.)</a>
-          <a href="recreation.html">Recreational Gear</a>
-          <a href="https://turo.com/us/en/drivers/6817064" target="_blank" rel="noopener noreferrer">Rental Vehicles (Turo)</a>
-          <a href="https://rvshare.com/rvs/details/1721274" target="_blank" rel="noopener noreferrer">Luxury Fifth Wheel RV (RVShare)</a>
-          <a href="https://www.viator.com/partner-shop/gandersguide/Alaskan-Vacation-Excursions?medium=link&medium_version=shop&campaign=BaroLink" target="_blank" rel="noopener noreferrer">Excursions (Viator)</a>
-        </div>
-      </div>
-
-      <a href="about.html">About</a>
-      <a href="contact.html">Contact</a>
-    </nav>
-  </header>
+  <!-- Reusable header -->
+  <div id="header"></div>
+  <script>
+    fetch("header.html")
+      .then(res => res.text())
+      .then(data => document.getElementById("header").innerHTML = data);
+  </script>
 
   <main>
     <section class="hero">
@@ -63,8 +50,11 @@
     </section>
   </main>
 
-  <footer><p>Servicing Location: Anchorage, AK</p>
-        <p>© 2025 Baro</p></footer>
+  <footer>
+    <p>Servicing Location: Anchorage, AK</p>
+    <p>© 2025 Baro</p>
+  </footer>
+
   <script src="script.js"></script>
 </body>
 </html>
