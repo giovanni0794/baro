@@ -15,9 +15,9 @@
     button { background:var(--accent); color:#fff; border:none; border-radius:6px; padding:.6rem 1rem; cursor:pointer; }
     button.secondary { background:#444; }
     .muted { color:#555; font-size:.9rem; }
-    .success { color:green; font-weight:600; }
     .error { color:#b00020; font-weight:600; }
     .hidden { display:none; }
+    table th, table td { border-bottom:1px solid #e6e6e6; }
   </style>
 </head>
 <body>
@@ -27,32 +27,13 @@
     fetch("header.html").then(r=>r.text()).then(html=>{ document.getElementById("header").innerHTML = html; });
   </script>
 
-<!-- Owner Reservations -->
-<div class="panel hidden" id="owner-res-panel">
-  <h3>Reservations for your listings</h3>
-  <p class="muted">Pending holds show here. Confirm after payment or cancel to free the dates.</p>
-  <div id="resv-empty" class="muted">No reservations yet.</div>
-  <table id="resv-table" class="hidden" style="width:100%; border-collapse:collapse;">
-    <thead>
-      <tr>
-        <th style="text-align:left; padding:.4rem;">Listing</th>
-        <th style="text-align:left; padding:.4rem;">Dates</th>
-        <th style="text-align:left; padding:.4rem;">Amount</th>
-        <th style="text-align:left; padding:.4rem;">Status</th>
-        <th style="text-align:left; padding:.4rem;">Actions</th>
-      </tr>
-    </thead>
-    <tbody id="resv-body"></tbody>
-  </table>
-</div>
-
   <main>
     <h2 style="text-align:center">Admin • Add Listings</h2>
 
     <!-- Auth Panel -->
     <div class="panel" id="auth-panel">
       <h3>Sign in</h3>
-      <p class="muted">Use your admin account. Password auth keeps this simple.</p>
+      <p class="muted">Use your admin/lender account.</p>
       <div class="row">
         <div>
           <label for="email">Email</label>
@@ -84,7 +65,7 @@
     <!-- Not authorized notice -->
     <div class="panel hidden" id="notauth-panel">
       <p class="error">You’re signed in but not authorized to create listings. Ask an admin to set your account as a lender.</p>
-      <p class="muted">Tip: after signing up once, run the one-liner to set <code>is_admin</code> and <code>is_lender</code>.</p>
+      <p class="muted">Tip: run the one-liner to set <code>is_admin</code> and <code>is_lender</code> for your profile.</p>
     </div>
 
     <!-- Add Listing -->
@@ -133,8 +114,27 @@
       </div>
     </div>
 
+    <!-- Owner Reservations -->
+    <div class="panel hidden" id="owner-res-panel">
+      <h3>Reservations for your listings</h3>
+      <p class="muted">Pending holds show here. Confirm after payment or cancel to free the dates.</p>
+      <div id="resv-empty" class="muted">No reservations yet.</div>
+      <table id="resv-table" class="hidden" style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:.4rem;">Listing</th>
+            <th style="text-align:left; padding:.4rem;">Dates</th>
+            <th style="text-align:left; padding:.4rem;">Amount</th>
+            <th style="text-align:left; padding:.4rem;">Status</th>
+            <th style="text-align:left; padding:.4rem;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="resv-body"></tbody>
+      </table>
+    </div>
+
     <p class="muted" style="text-align:center; margin-top:1rem;">
-      Note: global pause and blackout controls come next. This page is just for creating listings with the rules we already set up in the database.
+      Note: global pause and blackout controls come next.
     </p>
   </main>
 
@@ -142,7 +142,7 @@
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-    // Your real project values (from Supabase → Settings → API)
+    // Your real project values
     const SUPABASE_URL = 'https://lxplphqfkdvjtphafcyt.supabase.co'
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cGxwaHFma2R2anRwaGFmY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDAxOTQsImV4cCI6MjA3NTQxNjE5NH0.cRm0HrVuhEgALHiyOtlMQWMvDcFXFaBZvBOysshpzjU'
 
@@ -157,6 +157,13 @@
     const profileState = $('profile-state')
     const authStatus = $('auth-status')
 
+    const ownerResPanel = $('owner-res-panel')
+    const resvEmpty = $('resv-empty')
+    const resvTable = $('resv-table')
+    const resvBody = $('resv-body')
+
+    let currentUserId = null
+
     function showSignedIn(user) {
       authPanel.classList.add('hidden')
       sessionPanel.classList.remove('hidden')
@@ -167,11 +174,11 @@
       sessionPanel.classList.add('hidden')
       addPanel.classList.add('hidden')
       notAuth.classList.add('hidden')
+      ownerResPanel.classList.add('hidden')
       authStatus.textContent = ''
     }
 
     async function ensureProfile(user) {
-      // Upsert profile so RLS policies pass (owner-only writes).
       await supabase.from('profiles').upsert(
         { id: user.id, display_name: user.email },
         { onConflict: 'id' }
@@ -184,29 +191,97 @@
         .select('is_admin,is_lender,paused_global')
         .eq('id', user.id)
         .single()
-      if (error) {
-        profileState.textContent = ' • profile error'
-        return null
-      }
+      if (error) { profileState.textContent = ' • profile error'; return null }
       profileState.textContent = data.paused_global ? ' • global pause ON' : ' • global pause OFF'
       return data
     }
 
     function gate(profile) {
-      // Only show Add Listing if user is lender or admin
-      if (profile?.is_admin || profile?.is_lender) {
+      const ok = !!(profile?.is_admin || profile?.is_lender)
+      if (ok) {
         addPanel.classList.remove('hidden')
         notAuth.classList.add('hidden')
+        ownerResPanel.classList.remove('hidden')
+        loadOwnerReservations()
       } else {
         addPanel.classList.add('hidden')
         notAuth.classList.remove('hidden')
+        ownerResPanel.classList.add('hidden')
       }
     }
 
-    // On load: detect existing session
+    // ------- Owner reservations: list + confirm/cancel -------
+    function fmtDate(d){ return new Date(d).toLocaleDateString() }
+    function fmtMoney(c){ return `$${(c/100).toFixed(2)}` }
+
+    async function loadOwnerReservations() {
+      if (!currentUserId) return
+
+      // Join to listings and filter by current owner
+      const { data, error } = await supabase
+        .from('reservations')
+        .select('id, start_date, end_date, amount_cents, status, listing_id, listings!inner(title, owner_id)')
+        .eq('listings.owner_id', currentUserId)
+        .order('created_at', { ascending:false })
+
+      if (error) {
+        resvEmpty.textContent = 'Error loading reservations.'
+        resvTable.classList.add('hidden')
+        return
+      }
+
+      if (!data || data.length === 0) {
+        resvEmpty.textContent = 'No reservations yet.'
+        resvTable.classList.add('hidden')
+        return
+      }
+
+      resvEmpty.textContent = ''
+      resvTable.classList.remove('hidden')
+      resvBody.innerHTML = ''
+
+      for (const r of data) {
+        const tr = document.createElement('tr')
+        tr.innerHTML = `
+          <td style="padding:.4rem;">${r.listings?.title || 'Listing #'+r.listing_id}</td>
+          <td style="padding:.4rem;">${fmtDate(r.start_date)} → ${fmtDate(r.end_date)}</td>
+          <td style="padding:.4rem;">${fmtMoney(r.amount_cents)}</td>
+          <td style="padding:.4rem;">${r.status}</td>
+          <td style="padding:.4rem;">
+            <button class="confirm" data-id="${r.id}" ${r.status!=='pending' ? 'disabled' : ''}>Confirm</button>
+            <button class="cancel secondary" data-id="${r.id}" ${r.status==='cancelled' ? 'disabled' : ''}>Cancel</button>
+          </td>
+        `
+        resvBody.appendChild(tr)
+      }
+
+      resvBody.querySelectorAll('button.confirm').forEach(btn=>{
+        btn.addEventListener('click', async (e)=>{
+          const id = parseInt(e.currentTarget.dataset.id,10)
+          e.currentTarget.disabled = true
+          const { error } = await supabase.from('reservations').update({ status: 'confirmed' }).eq('id', id)
+          if (error) { alert('Confirm failed: ' + error.message); e.currentTarget.disabled = false; return }
+          await loadOwnerReservations()
+          alert('Reservation confirmed.')
+        })
+      })
+      resvBody.querySelectorAll('button.cancel').forEach(btn=>{
+        btn.addEventListener('click', async (e)=>{
+          const id = parseInt(e.currentTarget.dataset.id,10)
+          e.currentTarget.disabled = true
+          const { error } = await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', id)
+          if (error) { alert('Cancel failed: ' + error.message); e.currentTarget.disabled = false; return }
+          await loadOwnerReservations()
+          alert('Reservation cancelled.')
+        })
+      })
+    }
+
+    // ---------- Session bootstrap ----------
     {
-      const { data: { session} } = await supabase.auth.getSession()
+      const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
+        currentUserId = session.user.id
         showSignedIn(session.user)
         await ensureProfile(session.user)
         const p = await loadProfile(session.user)
@@ -216,7 +291,7 @@
       }
     }
 
-    // Sign in / up / out
+    // ---------- Auth actions ----------
     $('btn-signin').addEventListener('click', async () => {
       const email = $('email').value.trim()
       const password = $('password').value
@@ -224,6 +299,7 @@
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       authStatus.textContent = error ? `Error: ${error.message}` : 'Signed in.'
       if (!error) {
+        currentUserId = data.user.id
         showSignedIn(data.user)
         await ensureProfile(data.user)
         const p = await loadProfile(data.user)
@@ -241,10 +317,11 @@
 
     $('btn-signout').addEventListener('click', async () => {
       await supabase.auth.signOut()
+      currentUserId = null
       showSignedOut()
     })
 
-    // Create listing
+    // ---------- Create listing ----------
     $('btn-create').addEventListener('click', async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { $('create-status').textContent = 'Please sign in first.'; return }
@@ -273,93 +350,10 @@
         $('description').value = ''
         $('price').value = ''
         $('paused').checked = false
+        // refresh reservations list just in case
+        loadOwnerReservations()
       }
     })
-
-    // ------- Owner reservations: list + confirm/cancel -------
-const ownerResPanel = document.getElementById('owner-res-panel');
-const resvEmpty = document.getElementById('resv-empty');
-const resvTable = document.getElementById('resv-table');
-const resvBody = document.getElementById('resv-body');
-
-function fmtDate(d){ return new Date(d).toLocaleDateString(); }
-function fmtMoney(c){ return `$${(c/100).toFixed(2)}`; }
-
-async function loadOwnerReservations() {
-  // Policies already restrict rows to listings you own
-  const { data, error } = await supabase
-    .from('reservations')
-    .select('id, start_date, end_date, amount_cents, status, listing_id, listings(title)')
-    .order('created_at', { ascending:false });
-
-  if (error) {
-    resvEmpty.textContent = 'Error loading reservations.';
-    resvTable.classList.add('hidden');
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    resvEmpty.textContent = 'No reservations yet.';
-    resvTable.classList.add('hidden');
-    return;
-  }
-
-  resvEmpty.textContent = '';
-  resvTable.classList.remove('hidden');
-  resvBody.innerHTML = '';
-
-  for (const r of data) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="padding:.4rem;">${r.listings?.title || 'Listing #'+r.listing_id}</td>
-      <td style="padding:.4rem;">${fmtDate(r.start_date)} → ${fmtDate(r.end_date)}</td>
-      <td style="padding:.4rem;">${fmtMoney(r.amount_cents)}</td>
-      <td style="padding:.4rem;">${r.status}</td>
-      <td style="padding:.4rem;">
-        <button class="confirm" data-id="${r.id}" ${r.status!=='pending' ? 'disabled' : ''}>Confirm</button>
-        <button class="cancel secondary" data-id="${r.id}" ${r.status==='cancelled' ? 'disabled' : ''}>Cancel</button>
-      </td>
-    `;
-    resvBody.appendChild(tr);
-  }
-
-  // wire buttons
-  resvBody.querySelectorAll('button.confirm').forEach(btn=>{
-    btn.addEventListener('click', async (e)=>{
-      const id = parseInt(e.currentTarget.dataset.id,10);
-      e.currentTarget.disabled = true;
-      const { error } = await supabase.from('reservations').update({ status: 'confirmed' }).eq('id', id);
-      if (error) { alert('Confirm failed: ' + error.message); e.currentTarget.disabled = false; return; }
-      await loadOwnerReservations();
-      alert('Reservation confirmed.');
-    });
-  });
-
-  resvBody.querySelectorAll('button.cancel').forEach(btn=>{
-    btn.addEventListener('click', async (e)=>{
-      const id = parseInt(e.currentTarget.dataset.id,10);
-      e.currentTarget.disabled = true;
-      const { error } = await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', id);
-      if (error) { alert('Cancel failed: ' + error.message); e.currentTarget.disabled = false; return; }
-      await loadOwnerReservations();
-      alert('Reservation cancelled.');
-    });
-  });
-}
-
-// show the panel only for lenders/admins (we already have gate())
-const _oldGate = gate;
-gate = function(profile){
-  _oldGate(profile);
-  if (profile?.is_admin || profile?.is_lender) {
-    ownerResPanel.classList.remove('hidden');
-    loadOwnerReservations();
-  } else {
-    ownerResPanel.classList.add('hidden');
-  }
-};
-
-  
   </script>
 </body>
 </html>
