@@ -11,6 +11,7 @@
       font-family: sans-serif;
       margin: 0;
       padding: 0;
+      background-color: #f9f9f9;
     }
 
     header {
@@ -36,6 +37,10 @@
       max-width: 400px;
       margin: 0 auto;
       text-align: left;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
     .form-group {
@@ -63,16 +68,57 @@
       border: none;
       border-radius: 4px;
       cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
     button:hover {
       background-color: #555;
     }
 
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top: 2px solid transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-left: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     #status-message {
       margin-top: 15px;
       font-weight: bold;
       text-align: center;
+      padding: 10px;
+      border-radius: 5px;
+      display: none;
+    }
+
+    .success {
+      color: green;
+      background: #e6ffe6;
+      border: 1px solid green;
+      display: block;
+    }
+
+    .error {
+      color: red;
+      background: #ffe6e6;
+      border: 1px solid red;
+      display: block;
+    }
+
+    .limit {
+      color: #b36b00;
+      background: #fff4e6;
+      border: 1px solid #b36b00;
+      display: block;
     }
 
     footer {
@@ -112,15 +158,88 @@
           <textarea id="message" name="message" rows="5" required></textarea>
         </div>
 
-        <button type="submit">Send</button>
+        <button type="submit" id="submit-btn">Send</button>
       </form>
 
-      <!-- Status message will appear here -->
+      <!-- Status message -->
       <p id="status-message"></p>
 
       <div class="contact-info">
         <p>Servicing Location: Anchorage, AK</p>
       </div>
     </section>
-  </m
-  <footer>© 2025 Baro</footer>
+  </main>
+
+  <footer>
+    <p>© 2025 Baro</p>
+  </footer>
+
+  <!-- EmailJS -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script>
+    (function() {
+      emailjs.init("8FYbVFTqIsDD4lxdj"); // <-- your actual public key
+    })();
+
+    const form = document.getElementById("contact-form");
+    const status = document.getElementById("status-message");
+    const button = document.getElementById("submit-btn");
+
+    const RATE_LIMIT_MS = 30 * 60 * 1000; // 30 minutes
+    const MAX_SUBMISSIONS = 2;
+
+    function setStatus(type, message) {
+      status.className = type;
+      status.textContent = message;
+      status.style.display = "block";
+    }
+
+    form.addEventListener("submit", function(event) {
+      event.preventDefault();
+
+      const now = Date.now();
+      const history = JSON.parse(localStorage.getItem("submissionHistory")) || [];
+
+      // Filter out old submissions outside window
+      const recent = history.filter(ts => now - ts < RATE_LIMIT_MS);
+
+      if (recent.length >= MAX_SUBMISSIONS) {
+        const earliest = Math.min(...recent);
+        const remaining = RATE_LIMIT_MS - (now - earliest);
+
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        const minuteLabel = minutes === 1 ? "minute" : "minutes";
+
+        setStatus("limit", `⏳ Please wait ${minutes} ${minuteLabel} and ${seconds} seconds before submitting again.`);
+        return;
+      }
+
+      setStatus("", "Sending...");
+      button.disabled = true;
+      button.innerHTML = 'Sending <span class="spinner"></span>';
+
+      emailjs.sendForm("service_4lr0csg", "template_83vympp", form)
+        .then(function(response) {
+          console.log("SUCCESS!", response.status, response.text);
+          setStatus("success", "✅ Message sent successfully!");
+          form.reset();
+
+          // Reset textarea height if autoresized
+          form.querySelector("#message").style.height = "auto";
+
+          // Save submission timestamp
+          recent.push(now);
+          localStorage.setItem("submissionHistory", JSON.stringify(recent));
+        }, function(error) {
+          console.error("FAILED...", error);
+          setStatus("error", "❌ Failed to send. Please try again later.");
+        })
+        .finally(function() {
+          button.disabled = false;
+          button.innerHTML = 'Send';
+        });
+    });
+  </script>
+</body>
+</html>
