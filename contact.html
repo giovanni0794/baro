@@ -19,23 +19,17 @@
       font-size: 2rem;
     }
 
+    /* Always centered. Wide on desktop, responsive on mobile. */
     form {
       display: flex;
       flex-direction: column;
       gap: 15px;
-      width: 600px;         /* fixed width on desktop */
-      max-width: 90%;       /* prevents overflow on small screens */
+      width: clamp(320px, 90vw, 600px); /* <= this fixes the skinny-box nonsense */
       background: #fff;
       padding: 30px;
       border-radius: 8px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      margin: 0 auto 1rem auto; /* centered */
-    }
-
-    @media (max-width: 768px) {
-      form {
-        width: 90%;
-      }
+      margin: 0 auto 1rem auto;
     }
 
     .form-group {
@@ -88,47 +82,34 @@
     }
 
     #status-message {
-      margin-top: 10px;
       font-weight: bold;
       text-align: center;
       padding: 10px;
       border-radius: 5px;
       display: none;
-      max-width: 400px;
-      width: 100%;
+      margin-top: -5px;
+      opacity: 0;
+      transition: opacity 0.5s ease-in-out;
     }
+    #status-message.show { opacity: 1; }
 
     .success {
       color: green;
       background: #e6ffe6;
       border: 1px solid green;
-      display: block;
     }
-
     .error {
       color: red;
       background: #ffe6e6;
       border: 1px solid red;
-      display: block;
     }
-
     .limit {
       color: #b36b00;
       background: #fff4e6;
       border: 1px solid #b36b00;
-      display: block;
     }
 
-    .contact-info {
-      text-align: center;
-      margin-top: 1rem;
-    }
-
-    footer {
-      text-align: center;
-      padding: 1rem 1rem;
-      margin-top: 1rem;
-    }
+    .contact-info { text-align: center; margin-top: 1rem; }
   </style>
 </head>
 <body>
@@ -145,6 +126,7 @@
   <main>
     <section class="contact-section">
       <h2>Contact Us</h2>
+
       <form id="contact-form">
         <div class="form-group">
           <label for="name">Name:</label>
@@ -162,13 +144,13 @@
         </div>
 
         <button type="submit" id="submit-btn">Send</button>
+
+        <!-- Status message INSIDE the form -->
+        <p id="status-message"></p>
       </form>
 
-      <!-- Status message -->
-      <p id="status-message"></p>
-
       <div class="contact-info">
-        <p>Servicing Location: Anchorage, AK </p>
+        <p>Servicing Location: Anchorage, AK</p>
         <p>© 2025 Baro</p>
       </div>
     </section>
@@ -177,36 +159,63 @@
   <!-- EmailJS -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script>
-    (function() {
-      emailjs.init("8FYbVFTqIsDD4lxdj");
-    })();
+    (function() { emailjs.init("8FYbVFTqIsDD4lxdj"); })();
 
     const form = document.getElementById("contact-form");
     const status = document.getElementById("status-message");
     const button = document.getElementById("submit-btn");
 
+    const RATE_LIMIT_MS = 30 * 60 * 1000; // 30 minutes
+    const MAX_SUBMISSIONS = 2;
+    const AUTO_HIDE_DELAY = 7000; // 7 seconds
+
     function setStatus(type, message) {
       status.className = type;
       status.textContent = message;
       status.style.display = "block";
+      requestAnimationFrame(() => status.classList.add("show")); // fade-in
+
+      // Auto-hide after 7 seconds
+      clearTimeout(status.hideTimeout);
+      status.hideTimeout = setTimeout(() => {
+        status.classList.remove("show");
+        setTimeout(() => { status.style.display = "none"; }, 500);
+      }, AUTO_HIDE_DELAY);
     }
 
     form.addEventListener("submit", function(event) {
       event.preventDefault();
+
+      const now = Date.now();
+      const history = JSON.parse(localStorage.getItem("submissionHistory")) || [];
+      const recent = history.filter(ts => now - ts < RATE_LIMIT_MS);
+
+      if (recent.length >= MAX_SUBMISSIONS) {
+        const earliest = Math.min(...recent);
+        const remaining = RATE_LIMIT_MS - (now - earliest);
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        const minuteLabel = minutes === 1 ? "minute" : "minutes";
+        setStatus("limit", `⏳ Please wait ${minutes} ${minuteLabel} and ${seconds} seconds before submitting again.`);
+        return;
+      }
 
       setStatus("", "Sending...");
       button.disabled = true;
       button.innerHTML = 'Sending <span class="spinner"></span>';
 
       emailjs.sendForm("service_4lr0csg", "template_83vympp", form)
-        .then(function(response) {
+        .then(() => {
           setStatus("success", "✅ Message sent successfully!");
           form.reset();
           form.querySelector("#message").style.height = "auto";
-        }, function(error) {
+          recent.push(now);
+          localStorage.setItem("submissionHistory", JSON.stringify(recent));
+        })
+        .catch(() => {
           setStatus("error", "❌ Failed to send. Please try again later.");
         })
-        .finally(function() {
+        .finally(() => {
           button.disabled = false;
           button.innerHTML = 'Send';
         });
