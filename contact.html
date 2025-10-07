@@ -23,20 +23,18 @@
       display: flex;
       flex-direction: column;
       gap: 15px;
-      width: 600px;        /* ✅ desktop width */
-      max-width: 100%;     /* ✅ prevent overflow */
-      margin: 0 auto;
+      width: 600px;         /* fixed width on desktop */
+      max-width: 90%;       /* prevents overflow on small screens */
       background: #fff;
       padding: 30px;
       border-radius: 8px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      margin-bottom: 1rem;
+      margin: 0 auto 1rem auto; /* centered */
     }
 
-    /* 📱 Mobile adjustment */
     @media (max-width: 768px) {
       form {
-        width: 90%;        /* ✅ 90% width on smaller screens */
+        width: 90%;
       }
     }
 
@@ -128,8 +126,8 @@
 
     footer {
       text-align: center;
-      padding: 2rem 1rem;
-      margin-top: 2rem;
+      padding: 1rem 1rem;
+      margin-top: 1rem;
     }
   </style>
 </head>
@@ -170,14 +168,11 @@
       <p id="status-message"></p>
 
       <div class="contact-info">
-        <p>Servicing Location: Anchorage, AK</p>
+        <p>Servicing Location: Anchorage, AK </p>
+        <p>© 2025 Baro</p>
       </div>
     </section>
   </main>
-
-  <footer>
-    <p>© 2025 Baro</p>
-  </footer>
 
   <!-- EmailJS -->
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -190,9 +185,6 @@
     const status = document.getElementById("status-message");
     const button = document.getElementById("submit-btn");
 
-    const RATE_LIMIT_MS = 30 * 60 * 1000; // 30 minutes
-    const MAX_SUBMISSIONS = 2;
-
     function setStatus(type, message) {
       status.className = type;
       status.textContent = message;
@@ -201,22 +193,6 @@
 
     form.addEventListener("submit", function(event) {
       event.preventDefault();
-
-      const now = Date.now();
-      const history = JSON.parse(localStorage.getItem("submissionHistory")) || [];
-      const recent = history.filter(ts => now - ts < RATE_LIMIT_MS);
-
-      if (recent.length >= MAX_SUBMISSIONS) {
-        const earliest = Math.min(...recent);
-        const remaining = RATE_LIMIT_MS - (now - earliest);
-
-        const minutes = Math.floor(remaining / 60000);
-        const seconds = Math.floor((remaining % 60000) / 1000);
-        const minuteLabel = minutes === 1 ? "minute" : "minutes";
-
-        setStatus("limit", `⏳ Please wait ${minutes} ${minuteLabel} and ${seconds} seconds before submitting again.`);
-        return;
-      }
 
       setStatus("", "Sending...");
       button.disabled = true;
@@ -227,8 +203,6 @@
           setStatus("success", "✅ Message sent successfully!");
           form.reset();
           form.querySelector("#message").style.height = "auto";
-          recent.push(now);
-          localStorage.setItem("submissionHistory", JSON.stringify(recent));
         }, function(error) {
           setStatus("error", "❌ Failed to send. Please try again later.");
         })
