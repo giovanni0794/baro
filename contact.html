@@ -20,17 +20,25 @@
     }
 
     form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  width: 600px;
-  max-width: 90%;
-  background: #fff;
-  padding: 30px;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-  margin-bottom: 1rem;
-}
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      width: 600px;        /* ✅ desktop width */
+      max-width: 100%;     /* ✅ prevent overflow */
+      margin: 0 auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      margin-bottom: 1rem;
+    }
+
+    /* 📱 Mobile adjustment */
+    @media (max-width: 768px) {
+      form {
+        width: 90%;        /* ✅ 90% width on smaller screens */
+      }
+    }
 
     .form-group {
       display: flex;
