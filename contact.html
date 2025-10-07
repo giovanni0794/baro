@@ -6,42 +6,31 @@
   <title>BARO</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    body {
-      text-align: center;
-      font-family: sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #f9f9f9;
-    }
-
-    header {
-      background: #333;
-      color: #fff;
-      padding: 1em;
-    }
-
-    nav a {
-      color: #fff;
-      margin: 0 10px;
-      text-decoration: none;
-    }
-
     main {
-      padding: 2em;
+      padding: 3rem 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      font-size: 2rem;
     }
 
     form {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      max-width: 400px;
-      margin: 0 auto;
-      text-align: left;
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 600px;
+  max-width: 90%;
+  background: #fff;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  margin-bottom: 1rem;
+}
 
     .form-group {
       display: flex;
@@ -55,7 +44,8 @@
 
     input,
     textarea {
-      padding: 8px;
+      width: 100%;
+      padding: 10px;
       border: 1px solid #ccc;
       border-radius: 4px;
       box-sizing: border-box;
@@ -63,7 +53,7 @@
 
     button {
       padding: 10px;
-      background-color: #333;
+      background-color: var(--accent);
       color: #fff;
       border: none;
       border-radius: 4px;
@@ -74,7 +64,7 @@
     }
 
     button:hover {
-      background-color: #555;
+      background-color: #444;
     }
 
     .spinner {
@@ -92,12 +82,14 @@
     }
 
     #status-message {
-      margin-top: 15px;
+      margin-top: 10px;
       font-weight: bold;
       text-align: center;
       padding: 10px;
       border-radius: 5px;
       display: none;
+      max-width: 400px;
+      width: 100%;
     }
 
     .success {
@@ -121,10 +113,15 @@
       display: block;
     }
 
+    .contact-info {
+      text-align: center;
+      margin-top: 1rem;
+    }
+
     footer {
-      background: #f1f1f1;
-      padding: 1em;
-      margin-top: 2em;
+      text-align: center;
+      padding: 2rem 1rem;
+      margin-top: 2rem;
     }
   </style>
 </head>
@@ -178,7 +175,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script>
     (function() {
-      emailjs.init("8FYbVFTqIsDD4lxdj"); // <-- your actual public key
+      emailjs.init("8FYbVFTqIsDD4lxdj");
     })();
 
     const form = document.getElementById("contact-form");
@@ -199,8 +196,6 @@
 
       const now = Date.now();
       const history = JSON.parse(localStorage.getItem("submissionHistory")) || [];
-
-      // Filter out old submissions outside window
       const recent = history.filter(ts => now - ts < RATE_LIMIT_MS);
 
       if (recent.length >= MAX_SUBMISSIONS) {
@@ -221,18 +216,12 @@
 
       emailjs.sendForm("service_4lr0csg", "template_83vympp", form)
         .then(function(response) {
-          console.log("SUCCESS!", response.status, response.text);
           setStatus("success", "✅ Message sent successfully!");
           form.reset();
-
-          // Reset textarea height if autoresized
           form.querySelector("#message").style.height = "auto";
-
-          // Save submission timestamp
           recent.push(now);
           localStorage.setItem("submissionHistory", JSON.stringify(recent));
         }, function(error) {
-          console.error("FAILED...", error);
           setStatus("error", "❌ Failed to send. Please try again later.");
         })
         .finally(function() {
