@@ -216,98 +216,119 @@
   function fmtMoney(c){ return `$${(c/100).toFixed(2)}` }
 
   async function loadOwnerReservations() {
-    if (!currentUserId) return
+  if (!currentUserId) return;
 
-    // Join to listings and filter by current owner
-    const { data, error } = await supabase
-      .from('reservations')
-      .select('id, start_date, end_date, amount_cents, status, cancelled_at, cancelled_by_role, listing_id, listings!inner(title, owner_id)')
-      .eq('listings.owner_id', currentUserId)
-      .order('created_at', { ascending:false })
+  const { data, error } = await supabase
+    .from('reservations')
+    .select('id, start_date, end_date, amount_cents, status, cancelled_at, cancelled_by_role, cancel_notes, listing_id, listings!inner(title, owner_id)')
+    .eq('listings.owner_id', currentUserId)
+    .order('created_at', { ascending:false });
 
-    if (error) {
-      resvEmpty.textContent = 'Error loading reservations.'
-      resvTable.classList.add('hidden')
-      return
-    }
+  const labelFor = (role) =>
+    role === 'admin' ? 'Baro' : role === 'owner' ? 'Lender' : role === 'renter' ? 'Renter' : 'Unknown';
+  const fmtDate  = d => new Date(d).toLocaleDateString();
+  const fmtMoney = c => `$${(c/100).toFixed(2)}`;
 
-    if (!data || data.length === 0) {
-      resvEmpty.textContent = 'No reservations yet.'
-      resvTable.classList.add('hidden')
-      return
-    }
+  if (error) { resvEmpty.textContent = 'Error loading reservations.'; resvTable.classList.add('hidden'); return; }
+  if (!data?.length) { resvEmpty.textContent = 'No reservations yet.'; resvTable.classList.add('hidden'); return; }
 
-    resvEmpty.textContent = ''
-    resvTable.classList.remove('hidden')
-    resvBody.innerHTML = ''
+  resvEmpty.textContent = '';
+  resvTable.classList.remove('hidden');
+  resvBody.innerHTML = '';
 
-    for (const r of data) {
-      const isCancelled = r.status === 'cancelled'
-      const isConfirmed = r.status === 'confirmed'
+  for (const r of data) {
+    const isCancelled = r.status === 'cancelled';
+    const isConfirmed = r.status === 'confirmed';
 
-      const redBar = `<div style="background:#ffe6e6;color:#b00020;border:1px solid #f5b5b5;border-radius:8px;padding:.35rem .6rem;font-weight:700;text-align:center;">
-                        Cancelled${r.cancelled_by_role ? ` by ${r.cancelled_by_role}` : ''}${r.cancelled_at ? ` • ${new Date(r.cancelled_at).toLocaleString()}` : ''}
-                      </div>`
-      const greenBar = `<div style="background:#e6ffed;color:#0a6;border:1px solid #b5f0c5;border-radius:8px;padding:.35rem .6rem;font-weight:700;text-align:center;">
-                          Confirmed
-                        </div>`
+    // Chips for non-cancel states
+    const chip = (txt, bg, fg, brd='#0000') =>
+      `<span style="background:${bg};color:${fg};border:1px solid ${brd};border-radius:999px;padding:.2rem .5rem;font-weight:700;">${txt}</span>`;
+    const pendingChip   = chip('pending',   '#fff7e6', '#b36b00', '#ffd188');
+    const confirmedChip = chip('confirmed', '#e6ffed', '#0a6',    '#b5f0c5');
 
-      const actions = isCancelled
-        ? redBar
-        : isConfirmed
-          ? greenBar
-          : `
+    // Single red banner when cancelled (no duplicate status)
+    const cancelledBanner = `
+      <div style="display:block;width:100%;background:#ffe6e6;color:#b00020;border:1px solid #f5b5b5;
+                  border-radius:8px;padding:.45rem .7rem;font-weight:800;text-align:center;">
+        Cancelled${r.cancelled_by_role ? ` by ${labelFor(r.cancelled_by_role)}` : ''}
+        ${r.cancelled_at ? ` • ${new Date(r.cancelled_at).toLocaleString()}` : ''}
+        ${r.cancel_notes ? `<div style="font-weight:500;margin-top:.25rem;">“${r.cancel_notes.replace(/</g,'&lt;')}”</div>` : ''}
+      </div>`;
+
+    // Allowed roles in THIS admin view:
+    // - Admin: Baro, Lender, Renter
+    // - Owner (non-admin): Lender only
+    const roleOptions = currentProfile?.is_admin
+      ? `<option value="admin" selected>Baro</option><option value="owner">Lender</option><option value="renter">Renter</option>`
+      : `<option value="owner" selected>Lender</option>`;
+
+    const statusCell = isCancelled ? '—' : (isConfirmed ? confirmedChip : pendingChip);
+
+    const actionsCell = isCancelled
+      ? cancelledBanner
+      : isConfirmed
+        ? `
+            <div style="display:flex;flex-direction:column;gap:.4rem;">
+              <div>${confirmedChip}</div>
+              <div style="display:flex;align-items:center;gap:.5rem;">
+                <select class="cancel-as" style="margin-right:.4rem">${roleOptions}</select>
+                <button class="cancel secondary" data-id="${r.id}">Cancel</button>
+              </div>
+            </div>`
+        : `
+            <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
               <button class="confirm" data-id="${r.id}">Confirm</button>
+              <select class="cancel-as" style="margin-left:.2rem">${roleOptions}</select>
               <button class="cancel secondary" data-id="${r.id}">Cancel</button>
-            `
+            </div>`;
 
-      const statusCell = isCancelled
-        ? redBar
-        : isConfirmed
-          ? `<span style="background:#e6ffed;color:#0a6;border:1px solid #b5f0c5;border-radius:999px;padding:.2rem .5rem;font-weight:700;">confirmed</span>`
-          : `<span style="background:#fff7e6;color:#b36b00;border:1px solid #ffd188;border-radius:999px;padding:.2rem .5rem;font-weight:700;">pending</span>`
-
-      const tr = document.createElement('tr')
-      tr.innerHTML = `
-        <td style="padding:.4rem;">${r.listings?.title || 'Listing #'+r.listing_id}</td>
-        <td style="padding:.4rem;">${fmtDate(r.start_date)} → ${fmtDate(r.end_date)}</td>
-        <td style="padding:.4rem;">${fmtMoney(r.amount_cents)}</td>
-        <td style="padding:.4rem;">${statusCell}</td>
-        <td style="padding:.4rem;">${actions}</td>
-      `
-      resvBody.appendChild(tr)
-    }
-
-    // confirm button
-    resvBody.querySelectorAll('button.confirm').forEach(btn=>{
-      btn.addEventListener('click', async (e)=>{
-        const id = parseInt(e.currentTarget.dataset.id,10)
-        e.currentTarget.disabled = true
-        const { error } = await supabase.from('reservations').update({ status: 'confirmed' }).eq('id', id)
-        if (error) { alert('Confirm failed: ' + error.message); e.currentTarget.disabled = false; return }
-        await loadOwnerReservations()
-      })
-    })
-
-    // cancel button with warning + who cancelled
-    resvBody.querySelectorAll('button.cancel').forEach(btn=>{
-      btn.addEventListener('click', async (e)=>{
-        const id = parseInt(e.currentTarget.dataset.id,10)
-        const ok = confirm('Cancel this reservation? This frees the dates and cannot be undone.')
-        if (!ok) return
-        const role = (currentProfile?.is_admin ? 'admin' : 'owner')
-        e.currentTarget.disabled = true
-        const { error } = await supabase.from('reservations').update({
-          status: 'cancelled',
-          cancelled_at: new Date().toISOString(),
-          cancelled_by_user_id: currentUserId,
-          cancelled_by_role: role
-        }).eq('id', id)
-        if (error) { alert('Cancel failed: ' + error.message); e.currentTarget.disabled = false; return }
-        await loadOwnerReservations()
-      })
-    })
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="padding:.4rem;">${r.listings?.title || 'Listing #'+r.listing_id}</td>
+      <td style="padding:.4rem;">${fmtDate(r.start_date)} → ${fmtDate(r.end_date)}</td>
+      <td style="padding:.4rem;">${fmtMoney(r.amount_cents)}</td>
+      <td style="padding:.4rem;">${statusCell}</td>
+      <td style="padding:.4rem;">${actionsCell}</td>
+    `;
+    resvBody.appendChild(tr);
   }
+
+  // Confirm
+  resvBody.querySelectorAll('button.confirm').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      const id = parseInt(e.currentTarget.dataset.id,10);
+      e.currentTarget.disabled = true;
+      const { error } = await supabase.from('reservations').update({ status: 'confirmed' }).eq('id', id);
+      if (error) { alert('Confirm failed: ' + error.message); e.currentTarget.disabled = false; return; }
+      await loadOwnerReservations();
+    });
+  });
+
+  // Cancel with role enforcement + notes prompt
+  resvBody.querySelectorAll('button.cancel').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      const tr = e.currentTarget.closest('tr');
+      const id = parseInt(e.currentTarget.dataset.id,10);
+      const role = (tr.querySelector('select.cancel-as')?.value) || (currentProfile?.is_admin ? 'admin' : 'owner');
+
+      if (!confirm(`Cancel this reservation as ${labelFor(role)}? This frees the dates and cannot be undone.`)) return;
+
+      const notes = prompt('Add cancellation notes (optional):', '') || null;
+
+      e.currentTarget.disabled = true;
+      const { error } = await supabase.from('reservations').update({
+        status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancelled_by_user_id: currentUserId,
+        cancelled_by_role: role,
+        cancel_notes: notes
+      }).eq('id', id);
+
+      if (error) { alert('Cancel failed: ' + error.message); e.currentTarget.disabled = false; return; }
+      await loadOwnerReservations();
+    });
+  });
+}
 
   // ---------- Session bootstrap ----------
   {
