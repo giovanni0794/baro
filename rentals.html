@@ -6,19 +6,36 @@
   <title>BARO • Rentals</title>
   <link rel="stylesheet" href="style.css" />
   <style>
+    /* page-intro so we don't clash with the header's .hero */
+    .page-intro { text-align:center; padding: 2rem 1rem; }
+    .page-intro h2 { margin: 0 0 .25rem 0; }
+    .page-intro p  { margin: 0; opacity: .85; }
+
     /* tiny helper so empty/error messages don’t look sad */
     .note { text-align:center; padding:0.75rem; }
   </style>
 </head>
 <body>
-  <!-- Reusable header -->
+  <!-- Shared site header (loads header.html fragment) -->
   <div id="header"></div>
   <script>
-    fetch("header.html").then(r => r.text()).then(html => { document.getElementById("header").innerHTML = html });
+    (async () => {
+      const mount = document.getElementById('header');
+      try {
+        const res = await fetch('header.html', { cache: 'no-store' });
+        mount.innerHTML = await res.text();
+      } catch (e) {
+        console.error('Failed to load header.html', e);
+      }
+      const boot = () => { if (window.initHero) window.initHero(); };
+      if (document.readyState === 'complete') boot();
+      else window.addEventListener('load', boot);
+    })();
   </script>
 
   <main>
-    <section class="hero">
+    <!-- renamed from class="hero" to avoid black background from the header styles -->
+    <section class="page-intro">
       <h2>All Rentals</h2>
       <p>Select a listing to see details and availability.</p>
     </section>
@@ -59,17 +76,20 @@
       grid.parentElement.appendChild(p)
     } else {
       for (const item of data) {
-    const a = document.createElement('a');
-    a.className = 'card';
-    a.href = `listing.html?id=${encodeURIComponent(item.id)}`;
-    a.innerHTML = `
-      <h4>${item.title}</h4>
-      <p class="muted">${item.category}</p>
-      <p>$${(item.base_price_cents / 100).toFixed(2)}/day</p>
-    `;
-    grid.appendChild(a);
-  }
+        const a = document.createElement('a');
+        a.className = 'card';
+        a.href = `listing.html?id=${encodeURIComponent(item.id)}`;
+        a.innerHTML = `
+          <h4>${item.title}</h4>
+          <p class="muted">${item.category}</p>
+          <p>$${(item.base_price_cents / 100).toFixed(2)}/day</p>
+        `;
+        grid.appendChild(a);
+      }
     }
   </script>
+
+  <!-- Global script (defines initHero) -->
+  <script src="script.js" defer></script>
 </body>
 </html>

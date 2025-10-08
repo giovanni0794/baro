@@ -24,7 +24,18 @@
   <!-- Reusable header -->
   <div id="header"></div>
   <script>
-    fetch("header.html").then(r=>r.text()).then(html=>{ document.getElementById("header").innerHTML = html; });
+    // Inject header, then boot the topbar/hero logic once script.js is ready.
+    fetch("header.html")
+      .then(r => r.text())
+      .then(html => {
+        const mount = document.getElementById("header");
+        mount.innerHTML = html;
+        // Retry until window.initHero exists (handles load-order races)
+        (function boot() {
+          if (window.initHero) { window.initHero(); }
+          else { setTimeout(boot, 0); }
+        })();
+      });
   </script>
 
   <main>
@@ -32,7 +43,7 @@
 
     <!-- Auth Panel -->
     <div class="panel" id="auth-panel">
-      <h3>Sign in</h3>
+      <h3>Log in</h3>
       <p class="muted">Use your admin/lender account.</p>
       <div class="row">
         <div>
@@ -45,8 +56,8 @@
         </div>
       </div>
       <div style="margin-top:.75rem; display:flex; gap:.5rem;">
-        <button id="btn-signin">Sign in</button>
-        <button id="btn-signup" class="secondary">Sign up (first time)</button>
+        <button id="btn-signin">Log in</button>
+        <button id="btn-signup" class="secondary">Create account</button>
       </div>
       <p id="auth-status" class="muted" style="margin-top:.5rem;"></p>
     </div>
@@ -58,7 +69,7 @@
           <strong>Signed in:</strong> <span id="whoami"></span>
           <span id="profile-state" class="muted"></span>
         </div>
-        <button id="btn-signout" class="secondary">Sign out</button>
+        <button id="btn-signout" class="secondary">Log out</button>
       </div>
     </div>
 
@@ -154,11 +165,13 @@
     </p>
   </main>
 
+  <!-- Load site JS first so initHero exists -->
+  <script src="script.js"></script>
+
   <!-- Supabase: module import -->
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-    // Your real project values
     const SUPABASE_URL = 'https://lxplphqfkdvjtphafcyt.supabase.co'
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cGxwaHFma2R2anRwaGFmY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDAxOTQsImV4cCI6MjA3NTQxNjE5NH0.cRm0HrVuhEgALHiyOtlMQWMvDcFXFaBZvBOysshpzjU'
 
@@ -180,10 +193,10 @@
 
     const profEmailEl = document.getElementById('prof-email')
 
-    let resvFilter = 'all'        // filter state
-    let allOwnerReservations = [] // cache
+    let resvFilter = 'all'
+    let allOwnerReservations = []
     let currentUserId = null
-    let currentProfile = null     // admin/lender flags
+    let currentProfile = null
 
     function showSignedIn(user) {
       authPanel.classList.add('hidden')
@@ -208,7 +221,6 @@
       )
     }
 
-    // unified loadProfile (sets badges)
     async function loadProfile(user) {
       const { data, error } = await supabase
         .from('profiles')
@@ -239,12 +251,10 @@
       }
     }
 
-    // helpers
     const fmtDate  = d => new Date(d).toLocaleDateString()
     const fmtMoney = c => `$${(c/100).toFixed(2)}`
     const labelFor = role => role === 'admin' ? 'Baro' : role === 'owner' ? 'Lender' : role === 'renter' ? 'Renter' : 'Unknown'
 
-    // Load owner reservations (fetch once, then render with filter)
     async function loadOwnerReservations() {
       if (!currentUserId) return
 
@@ -412,17 +422,16 @@
       authStatus.textContent = error ? `Error: ${error.message}` : 'Account created. Check email to confirm, then sign in.'
     })
 
+    // ---------- Log out (same behavior as avatar menu) ----------
     $('btn-signout').addEventListener('click', async () => {
       await supabase.auth.signOut()
-      currentUserId = null
-      currentProfile = null
-      showSignedOut()
+      try { location.assign('index.html') } catch { location.assign('/') }
     })
 
     // ---------- Create listing ----------
     $('btn-create').addEventListener('click', async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { $('create-status').textContent = 'Please sign in first.'; return }
+      if (!user) { $('create-status').textContent = 'Please log in first.'; return }
 
       const title = $('title').value.trim()
       const category = $('category').value

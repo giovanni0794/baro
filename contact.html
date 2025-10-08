@@ -13,18 +13,18 @@
       align-items: center;
     }
 
-    h2 {
+    .contact-section h2 {
       text-align: center;
       margin-bottom: 1.5rem;
       font-size: 2rem;
     }
 
-    /* Always centered. Wide on desktop, responsive on mobile. */
-    form {
+    /* Scoped to contact section so the hero form isn't affected */
+    .contact-section form {
       display: flex;
       flex-direction: column;
       gap: 15px;
-      width: clamp(320px, 90vw, 600px); /* <= this fixes the skinny-box nonsense */
+      width: clamp(320px, 90vw, 600px);
       background: #fff;
       padding: 30px;
       border-radius: 8px;
@@ -32,18 +32,18 @@
       margin: 0 auto 1rem auto;
     }
 
-    .form-group {
+    .contact-section .form-group {
       display: flex;
       flex-direction: column;
     }
 
-    label {
+    .contact-section label {
       margin-bottom: 5px;
       font-weight: bold;
     }
 
-    input,
-    textarea {
+    .contact-section input,
+    .contact-section textarea {
       width: 100%;
       padding: 10px;
       border: 1px solid #ccc;
@@ -51,7 +51,7 @@
       box-sizing: border-box;
     }
 
-    button {
+    .contact-section button {
       padding: 10px;
       background-color: var(--accent);
       color: #fff;
@@ -63,7 +63,7 @@
       align-items: center;
     }
 
-    button:hover {
+    .contact-section button:hover {
       background-color: #444;
     }
 
@@ -77,9 +77,7 @@
       margin-left: 8px;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     #status-message {
       font-weight: bold;
@@ -93,32 +91,30 @@
     }
     #status-message.show { opacity: 1; }
 
-    .success {
-      color: green;
-      background: #e6ffe6;
-      border: 1px solid green;
-    }
-    .error {
-      color: red;
-      background: #ffe6e6;
-      border: 1px solid red;
-    }
-    .limit {
-      color: #b36b00;
-      background: #fff4e6;
-      border: 1px solid #b36b00;
-    }
+    .success { color: green; background: #e6ffe6; border: 1px solid green; }
+    .error   { color: red;   background: #ffe6e6; border: 1px solid red; }
+    .limit   { color: #b36b00; background: #fff4e6; border: 1px solid #b36b00; }
 
     .contact-info { text-align: center; margin-top: 1rem; }
   </style>
 </head>
 <body>
-  <!-- Reusable header -->
+  <!-- Shared site header (loads header.html fragment) -->
   <div id="header"></div>
   <script>
-    fetch("header.html")
-      .then(res => res.text())
-      .then(data => document.getElementById("header").innerHTML = data);
+    (async () => {
+      const mount = document.getElementById('header');
+      try {
+        const res = await fetch('header.html', { cache: 'no-store' });
+        mount.innerHTML = await res.text();
+      } catch (e) {
+        console.error('Failed to load header.html', e);
+      }
+      // Boot the rotating noun + smart search once global scripts are ready
+      const boot = () => { if (window.initHero) window.initHero(); };
+      if (document.readyState === 'complete') boot();
+      else window.addEventListener('load', boot);
+    })();
   </script>
 
   <main>
@@ -172,8 +168,6 @@
       status.textContent = message;
       status.style.display = "block";
       requestAnimationFrame(() => status.classList.add("show")); // fade-in
-
-      // Auto-hide after 7 seconds
       clearTimeout(status.hideTimeout);
       status.hideTimeout = setTimeout(() => {
         status.classList.remove("show");
@@ -219,5 +213,8 @@
         });
     });
   </script>
+
+  <!-- Global script (contains initHero) -->
+  <script src="script.js" defer></script>
 </body>
 </html>

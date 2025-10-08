@@ -7,16 +7,26 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Reusable header -->
+  <!-- Shared site header (loads header.html fragment) -->
   <div id="header"></div>
   <script>
-    fetch("header.html")
-      .then(res => res.text())
-      .then(data => document.getElementById("header").innerHTML = data);
+    (async () => {
+      const mount = document.getElementById('header');
+      try {
+        const res = await fetch('header.html', { cache: 'no-store' });
+        mount.innerHTML = await res.text();
+      } catch (e) {
+        console.error('Failed to load header.html', e);
+      }
+      const boot = () => { if (window.initHero) window.initHero(); };
+      if (document.readyState === 'complete') boot();
+      else window.addEventListener('load', boot);
+    })();
   </script>
 
   <main>
-    <section class="hero">
+    <!-- old hero content renamed to avoid CSS collisions with the real hero header -->
+    <section class="welcome">
       <h2>Baro just about anything! If we don't have it, maybe we can get it! Just reach out and ask!</h2>
       <p>User marketplace coming soon!</p>
       <p>If you own it: list it! If you want to rent it: solicit it!</p>
@@ -55,6 +65,7 @@
     <p>© 2025 Baro</p>
   </footer>
 
-  <script src="script.js"></script>
+  <!-- Global script (defines initHero) -->
+  <script src="script.js" defer></script>
 </body>
 </html>

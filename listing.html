@@ -10,18 +10,35 @@
     .panel { background: var(--light, #fff); padding: 1rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08); margin-bottom: 1rem; }
     .row { display:flex; gap:1rem; flex-wrap:wrap; }
     .row > * { flex:1 1 300px; }
-    label { display:block; margin:.5rem 0 .25rem; font-weight:600; }
-    input { width:100%; padding:.6rem; border:1px solid #ccc; border-radius:6px; box-sizing:border-box; }
+
+    /* scoped so we don't style the hero header's controls */
+    main label { display:block; margin:.5rem 0 .25rem; font-weight:600; }
+    main input { width:100%; padding:.6rem; border:1px solid #ccc; border-radius:6px; box-sizing:border-box; }
     .muted { color:#555; font-size:.9rem; }
     .price { font-size:1.25rem; font-weight:700; }
     .actions { display:flex; gap:.5rem; flex-wrap:wrap; }
-    button { background:var(--accent); color:#fff; border:none; border-radius:6px; padding:.6rem 1rem; cursor:pointer; }
+    main button { background:var(--accent); color:#fff; border:none; border-radius:6px; padding:.6rem 1rem; cursor:pointer; }
+    main button.secondary { background:#444; }
     .note { text-align:center; padding:.75rem; }
   </style>
 </head>
 <body>
+  <!-- Shared site header (loads header.html fragment) -->
   <div id="header"></div>
-  <script>fetch("header.html").then(r=>r.text()).then(html=>{ document.getElementById("header").innerHTML = html })</script>
+  <script>
+    (async () => {
+      const mount = document.getElementById('header');
+      try {
+        const res = await fetch('header.html', { cache: 'no-store' });
+        mount.innerHTML = await res.text();
+      } catch (e) {
+        console.error('Failed to load header.html', e);
+      }
+      const boot = () => { if (window.initHero) window.initHero(); };
+      if (document.readyState === 'complete') boot();
+      else window.addEventListener('load', boot);
+    })();
+  </script>
 
   <main>
     <a href="rentals.html" class="muted">← Back to all rentals</a>
@@ -49,8 +66,8 @@
       <p class="muted" id="calc">Select dates to see total.</p>
       <div class="actions">
         <button id="btn-hold">Hold & continue</button>
-        <button id="btn-paypal" class="secondary" style="background:#444">PayPal (later)</button>
-        <button id="btn-venmo" class="secondary" style="background:#444">Venmo (later)</button>
+        <button id="btn-paypal" class="secondary">PayPal (later)</button>
+        <button id="btn-venmo" class="secondary">Venmo (later)</button>
       </div>
       <p class="muted">Payments aren’t wired yet. Next steps will create the reservations table, block dates, and confirm after payment.</p>
     </section>
@@ -107,54 +124,51 @@
 
     // Placeholder actions
     document.getElementById('btn-hold').addEventListener('click', async () => {
-  // must be signed in (for now). If not, punt them to admin.html to sign in.
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) { alert('Please sign in first (use the Admin page for now), then try again.'); return; }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { alert('Please sign in first (use the Admin page for now), then try again.'); return; }
 
-  if (!startEl.value || !endEl.value) { alert('Pick start and end dates.'); return; }
+      if (!startEl.value || !endEl.value) { alert('Pick start and end dates.'); return; }
 
-  const s = new Date(startEl.value + 'T00:00:00');
-  const e = new Date(endEl.value + 'T00:00:00');
-  if (e <= s) { alert('End date must be after start date.'); return; }
+      const s = new Date(startEl.value + 'T00:00:00');
+      const e = new Date(endEl.value + 'T00:00:00');
+      if (e <= s) { alert('End date must be after start date.'); return; }
 
-  // simple max-advance check using the meta we loaded
-  const maxMonths = parseInt((metaEl.textContent.match(/Max advance booking:\s*(\d+)/)||[])[1] || '6', 10);
-  const latest = new Date(); latest.setMonth(latest.getMonth() + maxMonths);
-  if (s > latest) { alert(`Start date is beyond the allowed ${maxMonths} month window.`); return; }
+      const maxMonths = parseInt((metaEl.textContent.match(/Max advance booking:\s*(\d+)/)||[])[1] || '6', 10);
+      const latest = new Date(); latest.setMonth(latest.getMonth() + maxMonths);
+      if (s > latest) { alert(`Start date is beyond the allowed ${maxMonths} month window.`); return; }
 
-  const nights = Math.max(0, Math.round((e - s) / (24*60*60*1000)));
-  if (nights === 0) { alert('Minimum stay is 1 night.'); return; }
+      const nights = Math.max(0, Math.round((e - s) / (24*60*60*1000)));
+      if (nights === 0) { alert('Minimum stay is 1 night.'); return; }
 
-  // price from page
-  const pricePerDay = parseFloat(priceEl.textContent.replace(/[^\d.]/g,'')) || 0;
-  const amount_cents = Math.round(nights * pricePerDay * 100);
+      const pricePerDay = parseFloat(priceEl.textContent.replace(/[^\d.]/g,'')) || 0;
+      const amount_cents = Math.round(nights * pricePerDay * 100);
 
-  // insert reservation (pending)
-  const { error } = await supabase.from('reservations').insert({
-    listing_id: parseInt(id, 10),
-    renter_id: user.id,
-    start_date: startEl.value,  // yyyy-mm-dd
-    end_date: endEl.value,      // yyyy-mm-dd
-    amount_cents,
-    status: 'pending'
-  });
+      const { error } = await supabase.from('reservations').insert({
+        listing_id: parseInt(id, 10),
+        renter_id: user.id,
+        start_date: startEl.value,
+        end_date: endEl.value,
+        amount_cents,
+        status: 'pending'
+      });
 
-  if (error) {
-    // overlap constraint => 23P01
-    if (error.code === '23P01') {
-      alert('Those dates are no longer available. Pick different dates.');
-    } else {
-      alert('Could not create reservation: ' + error.message);
-    }
-    return;
-  }
+      if (error) {
+        if (error.code === '23P01') {
+          alert('Those dates are no longer available. Pick different dates.');
+        } else {
+          alert('Could not create reservation: ' + error.message);
+        }
+        return;
+      }
 
-  alert('Dates held as pending. Next step: payment confirmation flow.');
-  // later: redirect to checkout page with reservation id
-});
+      alert('Dates held as pending. Next step: payment confirmation flow.');
+    });
 
     document.getElementById('btn-paypal').addEventListener('click', ()=>alert('PayPal flow coming soon'))
     document.getElementById('btn-venmo').addEventListener('click', ()=>alert('Venmo flow coming soon'))
   </script>
+
+  <!-- Global script (defines initHero) -->
+  <script src="script.js" defer></script>
 </body>
 </html>

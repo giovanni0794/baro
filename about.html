@@ -5,39 +5,23 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>BARO</title>
   <link rel="stylesheet" href="style.css" />
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      line-height: 1.6;
-      margin: 0;
-      padding: 0;
-    }
-
-    .content {
-      max-width: 900px;      /* keeps text comfortably narrow */
-      width: 90%;            /* ensures it scales down on small screens */
-      margin: 40px auto;     /* centers horizontally */
-      padding: 20px;
-      border-radius: 8px;    /* smooth corners */
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.978);
-    }
-
-    h1, h2, h3 {
-      text-align: center;
-    }
-
-    p {
-      text-align: justify;   /* optional — makes paragraphs clean and uniform */
-    }
-  </style>
 </head>
-<body>
-  <!-- Reusable header -->
+<body class="about-page">
+  <!-- Shared site header (loads header.html fragment) -->
   <div id="header"></div>
   <script>
-    fetch("header.html")
-      .then(res => res.text())
-      .then(data => document.getElementById("header").innerHTML = data);
+    (async () => {
+      const mount = document.getElementById('header');
+      try {
+        const res = await fetch('header.html', { cache: 'no-store' });
+        mount.innerHTML = await res.text();
+      } catch (e) {
+        console.error('Failed to load header.html', e);
+      }
+      const boot = () => { if (window.initHero) window.initHero(); };
+      if (document.readyState === 'complete') boot();
+      else window.addEventListener('load', boot);
+    })();
   </script>
 
   <section class="bg-gradient-to-b from-blue-50 via-indigo-50 to-white text-gray-800 py-20 px-6 md:px-20">
@@ -78,7 +62,7 @@
         </p>
 
         <p class="text-lg leading-relaxed mb-6">
-          By directly connecting users, we aim to reduce cost, increase access, and bring trade back to the average person —
+          By directly connecting users, we aim to reduce cost, increase access, and bring trade back to the average person — 
           making borrowing as natural and reliable as buying.
         </p>
 
@@ -107,5 +91,8 @@
   </section>
 
   <footer>© 2025 Baro</footer>
+
+  <!-- Global script (contains initHero) -->
+  <script src="script.js" defer></script>
 </body>
 </html>
