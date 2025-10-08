@@ -140,220 +140,253 @@
 
   <!-- Supabase: module import -->
   <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-    // Your real project values
-    const SUPABASE_URL = 'https://lxplphqfkdvjtphafcyt.supabase.co'
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cGxwaHFma2R2anRwaGFmY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDAxOTQsImV4cCI6MjA3NTQxNjE5NH0.cRm0HrVuhEgALHiyOtlMQWMvDcFXFaBZvBOysshpzjU'
+  // Your real project values
+  const SUPABASE_URL = 'https://lxplphqfkdvjtphafcyt.supabase.co'
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cGxwaHFma2R2anRwaGFmY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDAxOTQsImV4cCI6MjA3NTQxNjE5NH0.cRm0HrVuhEgALHiyOtlMQWMvDcFXFaBZvBOysshpzjU'
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-    const $ = (id) => document.getElementById(id)
-    const authPanel = $('auth-panel')
-    const sessionPanel = $('session-panel')
-    const addPanel = $('add-panel')
-    const notAuth = $('notauth-panel')
-    const whoami = $('whoami')
-    const profileState = $('profile-state')
-    const authStatus = $('auth-status')
+  const $ = (id) => document.getElementById(id)
+  const authPanel = $('auth-panel')
+  const sessionPanel = $('session-panel')
+  const addPanel = $('add-panel')
+  const notAuth = $('notauth-panel')
+  const whoami = $('whoami')
+  const profileState = $('profile-state')
+  const authStatus = $('auth-status')
 
-    const ownerResPanel = $('owner-res-panel')
-    const resvEmpty = $('resv-empty')
-    const resvTable = $('resv-table')
-    const resvBody = $('resv-body')
+  const ownerResPanel = $('owner-res-panel')
+  const resvEmpty = $('resv-empty')
+  const resvTable = $('resv-table')
+  const resvBody = $('resv-body')
 
-    let currentUserId = null
+  let currentUserId = null
+  let currentProfile = null  // store admin/lender flags
 
-    function showSignedIn(user) {
-      authPanel.classList.add('hidden')
-      sessionPanel.classList.remove('hidden')
-      whoami.textContent = user.email
-    }
-    function showSignedOut() {
-      authPanel.classList.remove('hidden')
-      sessionPanel.classList.add('hidden')
-      addPanel.classList.add('hidden')
+  function showSignedIn(user) {
+    authPanel.classList.add('hidden')
+    sessionPanel.classList.remove('hidden')
+    whoami.textContent = user.email
+  }
+  function showSignedOut() {
+    authPanel.classList.remove('hidden')
+    sessionPanel.classList.add('hidden')
+    addPanel.classList.add('hidden')
+    notAuth.classList.add('hidden')
+    ownerResPanel.classList.add('hidden')
+    authStatus.textContent = ''
+  }
+
+  async function ensureProfile(user) {
+    await supabase.from('profiles').upsert(
+      { id: user.id, display_name: user.email },
+      { onConflict: 'id' }
+    )
+  }
+
+  async function loadProfile(user) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('is_admin,is_lender,paused_global')
+      .eq('id', user.id)
+      .single()
+    if (error) { profileState.textContent = ' • profile error'; return null }
+    profileState.textContent = data.paused_global ? ' • global pause ON' : ' • global pause OFF'
+    return data
+  }
+
+  function gate(profile) {
+    const ok = !!(profile?.is_admin || profile?.is_lender)
+    if (ok) {
+      addPanel.classList.remove('hidden')
       notAuth.classList.add('hidden')
+      ownerResPanel.classList.remove('hidden')
+      loadOwnerReservations()
+    } else {
+      addPanel.classList.add('hidden')
+      notAuth.classList.remove('hidden')
       ownerResPanel.classList.add('hidden')
-      authStatus.textContent = ''
+    }
+  }
+
+  // ------- Owner reservations: list + confirm/cancel -------
+  function fmtDate(d){ return new Date(d).toLocaleDateString() }
+  function fmtMoney(c){ return `$${(c/100).toFixed(2)}` }
+
+  async function loadOwnerReservations() {
+    if (!currentUserId) return
+
+    // Join to listings and filter by current owner
+    const { data, error } = await supabase
+      .from('reservations')
+      .select('id, start_date, end_date, amount_cents, status, cancelled_at, cancelled_by_role, listing_id, listings!inner(title, owner_id)')
+      .eq('listings.owner_id', currentUserId)
+      .order('created_at', { ascending:false })
+
+    if (error) {
+      resvEmpty.textContent = 'Error loading reservations.'
+      resvTable.classList.add('hidden')
+      return
     }
 
-    async function ensureProfile(user) {
-      await supabase.from('profiles').upsert(
-        { id: user.id, display_name: user.email },
-        { onConflict: 'id' }
-      )
+    if (!data || data.length === 0) {
+      resvEmpty.textContent = 'No reservations yet.'
+      resvTable.classList.add('hidden')
+      return
     }
 
-    async function loadProfile(user) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('is_admin,is_lender,paused_global')
-        .eq('id', user.id)
-        .single()
-      if (error) { profileState.textContent = ' • profile error'; return null }
-      profileState.textContent = data.paused_global ? ' • global pause ON' : ' • global pause OFF'
-      return data
+    resvEmpty.textContent = ''
+    resvTable.classList.remove('hidden')
+    resvBody.innerHTML = ''
+
+    for (const r of data) {
+      const isCancelled = r.status === 'cancelled'
+      const isConfirmed = r.status === 'confirmed'
+
+      const redBar = `<div style="background:#ffe6e6;color:#b00020;border:1px solid #f5b5b5;border-radius:8px;padding:.35rem .6rem;font-weight:700;text-align:center;">
+                        Cancelled${r.cancelled_by_role ? ` by ${r.cancelled_by_role}` : ''}${r.cancelled_at ? ` • ${new Date(r.cancelled_at).toLocaleString()}` : ''}
+                      </div>`
+      const greenBar = `<div style="background:#e6ffed;color:#0a6;border:1px solid #b5f0c5;border-radius:8px;padding:.35rem .6rem;font-weight:700;text-align:center;">
+                          Confirmed
+                        </div>`
+
+      const actions = isCancelled
+        ? redBar
+        : isConfirmed
+          ? greenBar
+          : `
+              <button class="confirm" data-id="${r.id}">Confirm</button>
+              <button class="cancel secondary" data-id="${r.id}">Cancel</button>
+            `
+
+      const statusCell = isCancelled
+        ? redBar
+        : isConfirmed
+          ? `<span style="background:#e6ffed;color:#0a6;border:1px solid #b5f0c5;border-radius:999px;padding:.2rem .5rem;font-weight:700;">confirmed</span>`
+          : `<span style="background:#fff7e6;color:#b36b00;border:1px solid #ffd188;border-radius:999px;padding:.2rem .5rem;font-weight:700;">pending</span>`
+
+      const tr = document.createElement('tr')
+      tr.innerHTML = `
+        <td style="padding:.4rem;">${r.listings?.title || 'Listing #'+r.listing_id}</td>
+        <td style="padding:.4rem;">${fmtDate(r.start_date)} → ${fmtDate(r.end_date)}</td>
+        <td style="padding:.4rem;">${fmtMoney(r.amount_cents)}</td>
+        <td style="padding:.4rem;">${statusCell}</td>
+        <td style="padding:.4rem;">${actions}</td>
+      `
+      resvBody.appendChild(tr)
     }
 
-    function gate(profile) {
-      const ok = !!(profile?.is_admin || profile?.is_lender)
-      if (ok) {
-        addPanel.classList.remove('hidden')
-        notAuth.classList.add('hidden')
-        ownerResPanel.classList.remove('hidden')
-        loadOwnerReservations()
-      } else {
-        addPanel.classList.add('hidden')
-        notAuth.classList.remove('hidden')
-        ownerResPanel.classList.add('hidden')
-      }
-    }
-
-    // ------- Owner reservations: list + confirm/cancel -------
-    function fmtDate(d){ return new Date(d).toLocaleDateString() }
-    function fmtMoney(c){ return `$${(c/100).toFixed(2)}` }
-
-    async function loadOwnerReservations() {
-      if (!currentUserId) return
-
-      // Join to listings and filter by current owner
-      const { data, error } = await supabase
-        .from('reservations')
-        .select('id, start_date, end_date, amount_cents, status, listing_id, listings!inner(title, owner_id)')
-        .eq('listings.owner_id', currentUserId)
-        .order('created_at', { ascending:false })
-
-      if (error) {
-        resvEmpty.textContent = 'Error loading reservations.'
-        resvTable.classList.add('hidden')
-        return
-      }
-
-      if (!data || data.length === 0) {
-        resvEmpty.textContent = 'No reservations yet.'
-        resvTable.classList.add('hidden')
-        return
-      }
-
-      resvEmpty.textContent = ''
-      resvTable.classList.remove('hidden')
-      resvBody.innerHTML = ''
-
-      for (const r of data) {
-        const tr = document.createElement('tr')
-        tr.innerHTML = `
-          <td style="padding:.4rem;">${r.listings?.title || 'Listing #'+r.listing_id}</td>
-          <td style="padding:.4rem;">${fmtDate(r.start_date)} → ${fmtDate(r.end_date)}</td>
-          <td style="padding:.4rem;">${fmtMoney(r.amount_cents)}</td>
-          <td style="padding:.4rem;">${r.status}</td>
-          <td style="padding:.4rem;">
-            <button class="confirm" data-id="${r.id}" ${r.status!=='pending' ? 'disabled' : ''}>Confirm</button>
-            <button class="cancel secondary" data-id="${r.id}" ${r.status==='cancelled' ? 'disabled' : ''}>Cancel</button>
-          </td>
-        `
-        resvBody.appendChild(tr)
-      }
-
-      resvBody.querySelectorAll('button.confirm').forEach(btn=>{
-        btn.addEventListener('click', async (e)=>{
-          const id = parseInt(e.currentTarget.dataset.id,10)
-          e.currentTarget.disabled = true
-          const { error } = await supabase.from('reservations').update({ status: 'confirmed' }).eq('id', id)
-          if (error) { alert('Confirm failed: ' + error.message); e.currentTarget.disabled = false; return }
-          await loadOwnerReservations()
-          alert('Reservation confirmed.')
-        })
+    // confirm button
+    resvBody.querySelectorAll('button.confirm').forEach(btn=>{
+      btn.addEventListener('click', async (e)=>{
+        const id = parseInt(e.currentTarget.dataset.id,10)
+        e.currentTarget.disabled = true
+        const { error } = await supabase.from('reservations').update({ status: 'confirmed' }).eq('id', id)
+        if (error) { alert('Confirm failed: ' + error.message); e.currentTarget.disabled = false; return }
+        await loadOwnerReservations()
       })
-      resvBody.querySelectorAll('button.cancel').forEach(btn=>{
-        btn.addEventListener('click', async (e)=>{
-          const id = parseInt(e.currentTarget.dataset.id,10)
-          e.currentTarget.disabled = true
-          const { error } = await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', id)
-          if (error) { alert('Cancel failed: ' + error.message); e.currentTarget.disabled = false; return }
-          await loadOwnerReservations()
-          alert('Reservation cancelled.')
-        })
-      })
-    }
-
-    // ---------- Session bootstrap ----------
-    {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        currentUserId = session.user.id
-        showSignedIn(session.user)
-        await ensureProfile(session.user)
-        const p = await loadProfile(session.user)
-        gate(p)
-      } else {
-        showSignedOut()
-      }
-    }
-
-    // ---------- Auth actions ----------
-    $('btn-signin').addEventListener('click', async () => {
-      const email = $('email').value.trim()
-      const password = $('password').value
-      authStatus.textContent = 'Signing in...'
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-      authStatus.textContent = error ? `Error: ${error.message}` : 'Signed in.'
-      if (!error) {
-        currentUserId = data.user.id
-        showSignedIn(data.user)
-        await ensureProfile(data.user)
-        const p = await loadProfile(data.user)
-        gate(p)
-      }
     })
 
-    $('btn-signup').addEventListener('click', async () => {
-      const email = $('email').value.trim()
-      const password = $('password').value
-      authStatus.textContent = 'Creating account...'
-      const { error } = await supabase.auth.signUp({ email, password })
-      authStatus.textContent = error ? `Error: ${error.message}` : 'Account created. Check email to confirm, then sign in.'
+    // cancel button with warning + who cancelled
+    resvBody.querySelectorAll('button.cancel').forEach(btn=>{
+      btn.addEventListener('click', async (e)=>{
+        const id = parseInt(e.currentTarget.dataset.id,10)
+        const ok = confirm('Cancel this reservation? This frees the dates and cannot be undone.')
+        if (!ok) return
+        const role = (currentProfile?.is_admin ? 'admin' : 'owner')
+        e.currentTarget.disabled = true
+        const { error } = await supabase.from('reservations').update({
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString(),
+          cancelled_by_user_id: currentUserId,
+          cancelled_by_role: role
+        }).eq('id', id)
+        if (error) { alert('Cancel failed: ' + error.message); e.currentTarget.disabled = false; return }
+        await loadOwnerReservations()
+      })
     })
+  }
 
-    $('btn-signout').addEventListener('click', async () => {
-      await supabase.auth.signOut()
-      currentUserId = null
+  // ---------- Session bootstrap ----------
+  {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) {
+      currentUserId = session.user.id
+      showSignedIn(session.user)
+      await ensureProfile(session.user)
+      currentProfile = await loadProfile(session.user)
+      gate(currentProfile)
+    } else {
       showSignedOut()
+    }
+  }
+
+  // ---------- Auth actions ----------
+  $('btn-signin').addEventListener('click', async () => {
+    const email = $('email').value.trim()
+    const password = $('password').value
+    authStatus.textContent = 'Signing in...'
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    authStatus.textContent = error ? `Error: ${error.message}` : 'Signed in.'
+    if (!error) {
+      currentUserId = data.user.id
+      showSignedIn(data.user)
+      await ensureProfile(data.user)
+      currentProfile = await loadProfile(data.user)
+      gate(currentProfile)
+    }
+  })
+
+  $('btn-signup').addEventListener('click', async () => {
+    const email = $('email').value.trim()
+    const password = $('password').value
+    authStatus.textContent = 'Creating account...'
+    const { error } = await supabase.auth.signUp({ email, password })
+    authStatus.textContent = error ? `Error: ${error.message}` : 'Account created. Check email to confirm, then sign in.'
+  })
+
+  $('btn-signout').addEventListener('click', async () => {
+    await supabase.auth.signOut()
+    currentUserId = null
+    currentProfile = null
+    showSignedOut()
+  })
+
+  // ---------- Create listing ----------
+  $('btn-create').addEventListener('click', async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { $('create-status').textContent = 'Please sign in first.'; return }
+
+    const title = $('title').value.trim()
+    const category = $('category').value
+    const description = $('description').value.trim()
+    const dollars = parseFloat($('price').value)
+    const base_price_cents = Math.round((isNaN(dollars) ? 0 : dollars) * 100)
+    const max_advance_months = parseInt($('maxMonths').value || '6', 10)
+    const paused = $('paused').checked
+
+    if (!title || base_price_cents <= 0) {
+      $('create-status').textContent = 'Title and valid price required.'; return
+    }
+
+    $('create-status').textContent = 'Saving...'
+    const { error } = await supabase.from('listings').insert({
+      owner_id: user.id, title, description, category,
+      base_price_cents, max_advance_months, paused
     })
 
-    // ---------- Create listing ----------
-    $('btn-create').addEventListener('click', async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { $('create-status').textContent = 'Please sign in first.'; return }
+    $('create-status').textContent = error ? `Error: ${error.message}` : 'Created ✅'
+    if (!error) {
+      $('title').value = ''
+      $('description').value = ''
+      $('price').value = ''
+      $('paused').checked = false
+      loadOwnerReservations()
+    }
+  })
+</script>
 
-      const title = $('title').value.trim()
-      const category = $('category').value
-      const description = $('description').value.trim()
-      const dollars = parseFloat($('price').value)
-      const base_price_cents = Math.round((isNaN(dollars) ? 0 : dollars) * 100)
-      const max_advance_months = parseInt($('maxMonths').value || '6', 10)
-      const paused = $('paused').checked
-
-      if (!title || base_price_cents <= 0) {
-        $('create-status').textContent = 'Title and valid price required.'; return
-      }
-
-      $('create-status').textContent = 'Saving...'
-      const { error } = await supabase.from('listings').insert({
-        owner_id: user.id, title, description, category,
-        base_price_cents, max_advance_months, paused
-      })
-
-      $('create-status').textContent = error ? `Error: ${error.message}` : 'Created ✅'
-      if (!error) {
-        $('title').value = ''
-        $('description').value = ''
-        $('price').value = ''
-        $('paused').checked = false
-        // refresh reservations list just in case
-        loadOwnerReservations()
-      }
-    })
-  </script>
 </body>
 </html>
