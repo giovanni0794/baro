@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BARO • Calendar</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* --- page frame --- */
+    main { max-width:1100px; margin:0 auto; padding:1.25rem 1rem 2rem; }
+
+    /* --- toolbar --- */
+    .cal-toolbar{
+      display:grid; grid-template-columns:auto 1fr auto auto; gap:.75rem; align-items:center;
+      margin-bottom:.75rem;
+    }
+    .cal-title{ font-weight:800; font-size:1.35rem; text-align:center; }
+    .navbtn{
+      border:none; background:#000; color:#fff; border-radius:10px; padding:.5rem .8rem; cursor:pointer;
+    }
+
+    /* filters block (compact) */
+    .filters{
+      display:grid; grid-template-columns:repeat(2, minmax(160px, 1fr)); gap:.35rem .75rem;
+      align-items:center; justify-items:start;
+      background:#fff; border:1px solid #eee; border-radius:10px; padding:.5rem .65rem;
+    }
+    .filters label{ display:flex; align-items:center; gap:.45rem; font-size:.9rem; cursor:pointer; }
+    .swatch{ width:14px; height:14px; border-radius:4px; display:inline-block; border:1px solid #0001; }
+
+    /* layout */
+    .cal-wrap { display:grid; grid-template-columns: 1fr 320px; gap:1rem; }
+    @media (max-width: 900px){ .cal-wrap { grid-template-columns: 1fr; } }
+
+    /* calendar */
+    .cal { background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.08); overflow:hidden; }
+    .cal-grid { display:grid; grid-template-columns: repeat(7, 1fr); }
+    .dow { background:#fafafa; padding:.5rem .4rem; border-bottom:1px solid #eee; font-weight:700; font-size:.9rem; text-align:center; }
+    .day {
+      height:110px;             /* fixed height so grid never jumps */
+      border-right:1px solid #f3f3f3; border-bottom:1px solid #f3f3f3;
+      padding:.35rem; position:relative; cursor:pointer; overflow:hidden;
+      display:flex; flex-direction:column;
+    }
+    .day:nth-child(7n) { border-right: none; }
+    .date { font-weight:700; font-size:.95rem; }
+    .past { background:#e9e9e9; color:#666; }
+    .today .date{ outline:2px solid #0b57d0; outline-offset:2px; border-radius:999px; padding:.1rem .35rem; }
+
+    .chips { margin-top:.2rem; display:flex; flex-direction:column; gap:.2rem; max-height:66px; overflow:hidden; }
+    .chip { display:inline-flex; align-items:center; gap:.35rem; font-size:.78rem; border-radius:6px; padding:.15rem .35rem; width:max-content; line-height:1.15; }
+    .chip-rent   { background:#e9f2ff; color:#0b57d0; }
+    .chip-lend   { background:#e5fff0; color:#087f5b; }
+    .chip-block  { background:#fff1e6; color:#b36b00; }
+    .chip-person { background:#ffe6e6; color:#b00020; }
+    .chip-more   { background:#eee; color:#555; }
+    .chip-promo  { background:#f0f5ff; color:#0052cc; }
+
+    .sel { outline:2px solid #0b57d0; outline-offset:-2px; background:#eef6ff; }
+
+    /* side panel */
+    .panel { background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.08); padding:1rem; }
+    .panel h3{ margin:.2rem 0 .4rem; }
+    .vgap { display:grid; gap:.6rem; }
+    label { font-weight:600; display:block; margin:.1rem 0 .2rem; }
+    select, button { width:100%; padding:.55rem .6rem; border:1px solid #ddd; border-radius:8px; }
+    .btn { background:#000; color:#fff; border:none; cursor:pointer; }
+    .btn.warn   { background:#b36b00; }
+    .btn.danger { background:#b00020; }
+    .btn.remove { background:#28a745; } /* green for Remove blackout/promo */
+    .btn.promo  { background:#007bff; }  /* blue for Add promotional pricing */
+    .hint { font-size:.9rem; color:#555; }
+    .banner { padding:.5rem .6rem; border-radius:8px; background:#fff7e6; color:#b36b00; border:1px solid #ffd188; margin-bottom:.5rem; }
+
+    /* agenda */
+    .agenda { margin-top:1rem; background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.08); padding:1rem; }
+    .agenda h4{ margin:.2rem 0 .6rem; }
+    .agenda ul{ margin:0; padding-left:1.1rem; }
+    .agenda li{ margin:.2rem 0; }
+
+    /* promo modal (simple) */
+    dialog.modal{ border:none; border-radius:12px; padding:0; max-width:560px; width:calc(100% - 2rem); }
+    .modal > form{ padding:1rem; display:grid; gap:.6rem; }
+    .modal .row{ display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
+    .modal .actions{ display:flex; gap:.5rem; justify-content:flex-end; margin-top:.4rem; }
+    .muted{ color:#666; font-size:.9rem; }
+  </style>
+</head>
+<body>
+  <!-- shared header -->
+  <div id="header"></div>
+  <script>
+    (async () => {
+      const host = document.getElementById('header');
+      try {
+        /* force relative path so it resolves from this folder */
+        const res = await fetch('./header.html', { cache:'no-store' });
+        if (!res.ok) throw new Error('Failed to load header');
+        host.innerHTML = await res.text();
+        const boot = () => window.initHero && window.initHero();
+        if (document.readyState === 'complete') boot();
+        else addEventListener('load', boot);
+      } catch (err) {
+        console.error('Header load failed:', err);
+        host.innerHTML = '<p style="color:red;text-align:center;">Header failed to load</p>';
+      }
+    })();
+  </script>
+
+  <main>
+    <!-- toolbar -->
+    <div class="cal-toolbar">
+      <button class="navbtn" id="prev" aria-label="Previous month">←</button>
+      <div class="cal-title" id="title">Calendar</div>
+      <button class="navbtn" id="next" aria-label="Next month">→</button>
+
+    <!-- filters (functional) -->
+      <form class="filters" id="filters">
+        <label><input type="checkbox" id="f-lend" checked />
+          <span class="swatch" style="background:#e5fff0"></span> Lender obligations</label>
+        <label><input type="checkbox" id="f-rent" checked />
+          <span class="swatch" style="background:#e9f2ff"></span> Your rentals</label>
+        <label><input type="checkbox" id="f-owner" checked />
+          <span class="swatch" style="background:#fff1e6"></span> Owner unavailable</label>
+        <label><input type="checkbox" id="f-person" checked />
+          <span class="swatch" style="background:#ffe6e6"></span> Store blocked</label>
+      </form>
+    </div>
+
+    <div class="cal-wrap">
+      <!-- calendar -->
+      <section class="cal">
+        <div class="cal-grid" id="grid-dow"></div>
+        <div class="cal-grid" id="grid-days"></div>
+      </section>
+
+      <!-- manage -->
+      <aside class="panel" id="manage">
+        <div id="blk-banner" class="banner" style="display:none;"></div>
+
+        <h3>Lender tools</h3>
+        <p class="hint">Select dates on the calendar, choose a listing (or All), then apply a blackout.</p>
+
+        <div class="vgap">
+          <div>
+            <label for="listing">Your listing</label>
+            <select id="listing"><option value="">Loading…</option></select>
+          </div>
+
+          <button
+            class="btn warn"
+            id="btn-owner"
+            title="Prevents reservations from starting or ending on these dates. Renters can still span across them by starting earlier or ending later.">
+            Owner unavailable
+          </button>
+
+          <button class="btn danger" id="btn-personal"
+            title="Prevents any new reservations that include the selected dates. Existing reservations must be cancelled manually and may incur account actions.">
+            Block days (no rentals)
+          </button>
+
+          <button class="btn danger" id="btn-store"
+            title="Shop-level recall: forces returns so all inventory is on-site for this date.">
+            Store blocked
+          </button>
+
+          <button class="btn remove" id="btn-remove">Remove blackout/promo</button>
+
+          <button class="btn" id="btn-clear">Clear selection</button>
+
+          <hr style="border:none;border-top:1px solid #eee; margin:.25rem 0;" />
+
+          <button class="btn promo" id="btn-promo">Add promotional pricing</button>
+          <div class="hint">Use one modal to configure tiered % or $ discounts for a date range. (Optional)</div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- agenda -->
+    <section class="agenda" id="agenda" hidden>
+      <h4 id="agenda-title">Agenda</h4>
+      <ul id="agenda-list"></ul>
+    </section>
+  </main>
+
+  <!-- Promo modal (compact) -->
+  <dialog class="modal" id="promo-modal">
+    <form method="dialog" id="promo-form">
+      <h3 style="margin:.25rem 0;">Add promotional pricing</h3>
+      <div class="row">
+        <div>
+          <label>Applies to</label>
+          <select id="promo-scope">
+            <option value="selected">Selected listing</option>
+            <option value="ALL">All listings</option>
+          </select>
+        </div>
+        <div>
+          <label>Discount type</label>
+          <select id="promo-type">
+            <option value="percent">% off</option>
+            <option value="flat">$ off per day</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Range start</label>
+          <input type="date" id="promo-start" required />
+        </div>
+        <div>
+          <label>Range end</label>
+          <input type="date" id="promo-end" required />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Tier 1</label>
+          <input id="t1-value" type="number" step="0.01" placeholder="10 (percent or dollars)" />
+          <div class="muted">Min days <input id="t1-min" type="number" min="1" style="width:5em"> Max <input id="t1-max" type="number" min="1" style="width:5em"></div>
+        </div>
+        <div>
+          <label>Tier 2</label>
+          <input id="t2-value" type="number" step="0.01" placeholder="20 (percent or dollars)" />
+          <div class="muted">Min days <input id="t2-min" type="number" min="1" style="width:5em"> Max <input id="t2-max" type="number" min="1" style="width:5em"></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button value="cancel" type="button" id="promo-cancel">Cancel</button>
+        <button class="btn promo" id="promo-save" type="button">Save promo</button>
+      </div>
+      <p class="muted" style="margin:.25rem 0 0;">Saving will replace overlapping promos for the chosen scope during this range.</p>
+    </form>
+  </dialog>
+
+  <footer><p style="text-align:center">Servicing Location: Anchorage, AK</p><p style="text-align:center">© 2025 Baro</p></footer>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+    const SUPABASE_URL = 'https://lxplphqfkdvjtphafcyt.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cGxwaHFma2R2anRwaGFmY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDAxOTQsImV4cCI6MjA3NTQxNjE5NH0.cRm0HrVuhEgALHiyOtlMQWMvDcFXFaBZvBOysshpzjU'
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    /* ---------- small date helpers (LOCAL, not UTC) ---------- */
+    const toLocalISO = (d) => {
+      const y = d.getFullYear(), m = d.getMonth()+1, day = d.getDate()
+      return `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+    }
+    const parseLocal = (iso) => {
+      const [y,m,d] = iso.split('-').map(Number)
+      return new Date(y, m-1, d) // local midnight
+    }
+    const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate()+n)
+
+    const $ = s => document.querySelector(s)
+    const gridDow = $('#grid-dow'), gridDays = $('#grid-days'), title = $('#title')
+    const prevBtn = $('#prev'), nextBtn = $('#next')
+    const banner = $('#blk-banner')
+    const managePanel = $('#manage'),
+          btnOwner = $('#btn-owner'),
+          btnPers  = $('#btn-personal'),
+          btnStore = $('#btn-store'),
+          btnRemove = $('#btn-remove'),
+          listingSel = $('#listing')
+    const fRent = $('#f-rent'), fLend = $('#f-lend'), fOwner = $('#f-owner'), fPerson = $('#f-person')
+
+    const agenda = $('#agenda'), agendaTitle = $('#agenda-title'), agendaList = $('#agenda-list')
+
+    const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+    for (const d of DOW) {
+      const el = document.createElement('div'); el.className='dow'; el.textContent=d; gridDow.appendChild(el)
+    }
+
+    // state
+    let session = null, userId = null, isAdmin = false, isLender = false
+    let view = new Date(); view.setDate(1)
+    let selection = new Set() // ISO dates
+    let myRentals = [], myLending = [], myListings = []
+    let blackouts = [] // daily dots { listing_id, date, kind }
+    let promotions = [] // promo spans { listing_id, start_date, end_date, kind, tiers... }
+
+    // auth + profile
+    {
+      const s = await supabase.auth.getSession()
+      session = s.data.session
+      if (!session?.user) {
+        managePanel.style.display = 'none'
+      } else {
+        userId = session.user.id
+        const { data: prof } = await supabase.from('profiles').select('is_admin,is_lender').eq('id', userId).single()
+        isAdmin = !!prof?.is_admin; isLender = !!prof?.is_lender
+        managePanel.style.display = (isAdmin || isLender) ? 'block' : 'none'
+      }
+    }
+
+    function daysInMonth(date){ return new Date(date.getFullYear(), date.getMonth()+1, 0).getDate() }
+    function iso(y,m,d){ return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}` }
+
+    async function loadMonthData() {
+      const y = view.getFullYear(), m = view.getMonth()
+      const startISO = iso(y,m,1)
+      const endISO   = iso(y,m,daysInMonth(view))
+
+      if (userId) {
+        // your rentals (filter out cancelled locally just in case)
+        const { data: rent } = await supabase
+          .from('reservations')
+          .select('id, listing_id, start_date, end_date, status, listings!inner(title, owner_id)')
+          .eq('renter_id', userId)
+          .lte('start_date', endISO).gte('end_date', startISO)
+        myRentals = (rent||[]).filter(r => !r.status || r.status.toLowerCase() !== 'cancelled')
+
+        // obligations as lender
+        const { data: lend } = await supabase
+          .from('reservations')
+          .select('id, listing_id, start_date, end_date, status, listings!inner(title, owner_id)')
+          .eq('listings.owner_id', userId)
+          .lte('start_date', endISO).gte('end_date', startISO)
+        myLending = (lend||[]).filter(r => !r.status || r.status.toLowerCase() !== 'cancelled')
+
+        // listings you own
+        if (isLender || isAdmin) {
+          const { data: listings } = await supabase
+            .from('listings')
+            .select('id,title,owner_id')
+            .eq('owner_id', userId)
+            .order('title')
+          myListings = listings || []
+          listingSel.innerHTML =
+            '<option value="">Choose a listing…</option>' +
+            '<option value="ALL">All listings</option>' +
+            myListings.map(l=>`<option value="${l.id}">${l.title}</option>`).join('')
+        }
+
+        // blackouts for your listings (daily dots)
+        try {
+          const ids = (myListings || []).map(l => l.id);
+          if (ids.length) {
+            const { data: blk, error } = await supabase
+              .from('listing_blackouts_daily')
+              .select('listing_id,date,kind')
+              .in('listing_id', ids)
+              .gte('date', startISO)
+              .lte('date', endISO)
+              .order('date');
+
+            if (error) console.error(error);
+            blackouts = blk || []
+          } else blackouts = []
+          banner.style.display = 'none'
+        } catch {
+          blackouts = []
+          banner.textContent = 'Heads-up: listing_blackouts_daily view not found. Calendar works, but blackout dots won’t show until you add it.'
+          banner.style.display = 'block'
+        }
+
+        // promotions for your listings (span-level)
+        try {
+          const ids2 = (myListings || []).map(l => l.id)
+          if (ids2.length) {
+            const { data: promos, error: pErr } = await supabase
+              .from('listing_promotions')
+              .select('listing_id,start_date,end_date,kind,tier1_value,tier2_value')
+              .in('listing_id', ids2)
+              .lte('start_date', endISO)
+              .gte('end_date', startISO)
+              .order('start_date')
+            if (pErr) console.error(pErr)
+            promotions = promos || []
+          } else promotions = []
+        } catch (e) {
+          console.warn('Promo fetch failed (ok if table not present):', e)
+          promotions = []
+        }
+      } else {
+        myRentals = []; myLending = []; myListings = []; blackouts = []; promotions = []
+      }
+    }
+
+    function render() {
+      const y=view.getFullYear(), m=view.getMonth()
+      title.textContent = `${view.toLocaleString(undefined,{month:'long'})} ${y}`
+      gridDays.innerHTML = ''
+
+      const firstDow = new Date(y,m,1).getDay()
+      const total = daysInMonth(view)
+
+      // pad
+      for (let i=0;i<firstDow;i++){
+        const pad = document.createElement('div'); pad.className='day past'; gridDays.appendChild(pad)
+      }
+
+      // index helpers
+      const blkByDate = {}
+      for (const b of blackouts) (blkByDate[b.date] ||= []).push(b)
+
+      const resByDate = {}
+      function addSpan(res, css){
+        // use local parsing to avoid UTC drift
+        const s = parseLocal(res.start_date), e = parseLocal(res.end_date)
+        for (let d=new Date(s); d<e; d = addDays(d,1)) {
+          const k = toLocalISO(d)
+          ;(resByDate[k] ||= []).push({ css, title:(res.listings?.title || `Listing #${res.listing_id}`), res })
+        }
+      }
+      myRentals.forEach(r => addSpan(r,'chip-rent'))
+      myLending.forEach(r => addSpan(r,'chip-lend'))
+
+      // normalize today to local midnight
+      const today = new Date(); today.setHours(0,0,0,0)
+      const todayISO = toLocalISO(today)
+
+      for (let day=1; day<=total; day++){
+        const dISO = iso(y,m,day)
+        const cell = document.createElement('div'); cell.className='day'; cell.dataset.date=dISO
+
+        // past/today cosmetics (within current month view)
+        const thisDay = new Date(y,m,day); thisDay.setHours(0,0,0,0)
+        if (thisDay < today) cell.classList.add('past')
+        if (dISO === todayISO) cell.classList.add('today')
+
+        if (selection.has(dISO)) cell.classList.add('sel')
+
+        const dateEl = document.createElement('div'); dateEl.className='date'; dateEl.textContent = day
+        cell.appendChild(dateEl)
+
+        const chips = document.createElement('div'); chips.className='chips'
+
+        // reservations (respect filters)
+        const rset = (resByDate[dISO]||[])
+        let shown = 0
+        const addChip = (css, text) => {
+          const c = document.createElement('div'); c.className=`chip ${css}`; c.textContent = text; chips.appendChild(c)
+          shown++
+        }
+
+        if (fRent.checked)
+          for (const evt of rset.filter(e=>e.css==='chip-rent')) {
+            if (shown >= 3) break; addChip('chip-rent', evt.title)
+          }
+        if (fLend.checked)
+          for (const evt of rset.filter(e=>e.css==='chip-lend')) {
+            if (shown >= 3) break; addChip('chip-lend', evt.title)
+          }
+
+        // blackouts
+        for (const b of (blkByDate[dISO]||[])) {
+          const isStore = (b.kind==='personal_use' || b.kind==='store_blocked')
+          if (isStore && !fPerson.checked) continue
+          if (!isStore && b.kind==='owner_unavailable' && !fOwner.checked) continue
+          if (shown < 3) {
+            const css = isStore ? 'chip-person' : 'chip-block'
+            const label = isStore ? 'Store blocked' : 'Owner unavailable'
+            addChip(css, label)
+          }
+        }
+
+        // promotions (inclusive)
+        let promoCount = 0
+        for (const p of promotions) {
+          const dd = parseLocal(dISO)
+          const ps = parseLocal(p.start_date)
+          const pe = parseLocal(p.end_date)
+          if (dd >= ps && dd <= pe) {
+            promoCount++
+            if (shown < 3) {
+              const chip = document.createElement('div'); chip.className='chip chip-promo'
+              chip.textContent = p.kind === 'percent'
+                ? `${p.tier1_value ?? ''}% off`
+                : `$${p.tier1_value ?? ''} off`
+              chips.appendChild(chip)
+              shown++
+            }
+          }
+        }
+
+        const totalItems = (rset?.length || 0) + ((blkByDate[dISO]||[]).length || 0) + promoCount
+        if (totalItems > shown) {
+          const more = document.createElement('div')
+          more.className = 'chip chip-more'
+          more.textContent = `+${totalItems - shown} more`
+          chips.appendChild(more)
+        }
+
+        cell.appendChild(chips)
+        gridDays.appendChild(cell)
+      }
+
+      // agenda
+      updateAgenda()
+    }
+
+    // selection (owners/admin only)
+    gridDays.addEventListener('click', (e)=>{
+      const cell = e.target.closest('.day'); if (!cell) return
+      const d = cell.dataset.date; if (!d) return
+      if (!(isLender || isAdmin)) return
+      if (selection.has(d)) { selection.delete(d); cell.classList.remove('sel') }
+      else { selection.add(d); cell.classList.add('sel') }
+      updateAgenda()
+    })
+    $('#btn-clear').addEventListener('click', ()=>{
+      selection.clear()
+      gridDays.querySelectorAll('.day.sel').forEach(el=>el.classList.remove('sel'))
+      updateAgenda()
+    })
+
+    function updateAgenda(){
+      const dates = Array.from(selection).sort()
+      if (!dates.length){ agenda.hidden = true; return }
+      agenda.hidden = false
+      agendaTitle.textContent = dates.length === 1 ? `Agenda for ${dates[0]}` : `Agenda for ${dates[0]} → ${dates[dates.length-1]}`
+      agendaList.innerHTML = ''
+
+      const dayMatches = (s,e,dISO) => {
+        const d = parseLocal(dISO)
+        return d >= parseLocal(s) && d < parseLocal(e)
+      }
+      const add = (txt) => { const li=document.createElement('li'); li.textContent=txt; agendaList.appendChild(li) }
+
+      for (const dISO of dates){
+        for (const r of myRentals) if (dayMatches(r.start_date, r.end_date, dISO))
+          add(`Your rental • ${r.listings?.title || `Listing #${r.listing_id}`} (${dISO === r.start_date ? 'pickup' : dISO === r.end_date ? 'return' : 'in use'})`)
+        for (const r of myLending) if (dayMatches(r.start_date, r.end_date, dISO))
+          add(`Lender obligation • ${r.listings?.title || `Listing #${r.listing_id}`} (${dISO === r.start_date ? 'handoff' : dISO === r.end_date ? 'return' : 'in use'})`)
+        for (const b of blackouts) if (b.date === dISO)
+          add(`${(b.kind==='personal_use' || b.kind==='store_blocked') ? 'Store blocked' : 'Owner unavailable'} • ${dISO}`)
+      }
+    }
+
+    // Save blackouts (duplicate-aware; shop vs listing scope)
+    async function saveBlackoutAny(kinds){
+      const sel = listingSel.value
+
+      if (!selection.size) { alert('Select one or more dates on the calendar.'); return }
+
+      const selectedDates = Array.from(selection).sort()
+
+      for (const kind of kinds) {
+        // determine scope
+        let ids = []
+        if (kind === 'owner_unavailable' || kind === 'store_blocked') {
+          // shop-level applies to all your listings regardless of dropdown
+          ids = (myListings || []).map(l => l.id)
+        } else {
+          // personal_use: listing-level; allow "ALL" to mean apply individually to each listing
+          ids = sel === 'ALL'
+            ? (myListings || []).map(l => l.id)
+            : [parseInt(sel,10)].filter(Boolean)
+        }
+
+        if (!ids.length) { alert('Choose a listing (or All listings).'); return }
+
+        try {
+          // pre-check existing for same (listing_id, start_date, kind)
+          const { data: existing, error: exErr } = await supabase
+            .from('listing_blackouts')
+            .select('listing_id,start_date,kind')
+            .in('listing_id', ids)
+            .in('start_date', selectedDates)
+            .eq('kind', kind)
+
+          if (exErr) console.warn('Duplicate check error:', exErr)
+
+          const existingSet = new Set((existing || []).map(r => `${r.listing_id}_${r.start_date}_${r.kind}`))
+
+          const rows = []
+          for (const id of ids) for (const d of selectedDates) {
+            const key = `${id}_${d}_${kind}`
+            if (!existingSet.has(key)) rows.push({ listing_id:id, start_date:d, end_date:d, kind })
+          }
+
+          if (!rows.length) {
+            alert('One or more of your selected dates is already marked for that blackout type. Nothing new added for those dates.')
+            continue
+          }
+
+          const { error } = await supabase
+            .from('listing_blackouts')
+            .upsert(rows, { onConflict:'listing_id,start_date,end_date,kind' })
+          if (error) throw error
+
+        } catch (e) {
+          console.error(e)
+          alert('Could not save blackout: ' + (e?.message || e))
+          return
+        }
+      }
+
+      selection.clear()
+      await loadMonthData(); render()
+      alert('Blackout(s) saved. Existing dates were ignored.')
+    }
+
+    const saveOwner = () => saveBlackoutAny(['owner_unavailable'])
+    // personal_use only (listing-level). Store recall is shop-level (store_blocked).
+    const saveNoRentals = () => saveBlackoutAny(['personal_use'])
+    const saveStoreRecall = () => saveBlackoutAny(['store_blocked'])
+    btnOwner.addEventListener('click', saveOwner)
+    btnPers .addEventListener('click', saveNoRentals)
+    btnStore.addEventListener('click', saveStoreRecall)
+
+    // Remove button: clears blackouts (any kind) for selected scope + overlapping promos
+    btnRemove.addEventListener('click', async ()=>{
+      try {
+        const dates = Array.from(selection).sort()
+        if (!dates.length) return alert('Select one or more dates to remove.')
+
+        const sel = listingSel.value
+        let ids = []
+        if (sel === 'ALL' || !sel) ids = (myListings || []).map(l => l.id)
+        else ids = [parseInt(sel,10)].filter(Boolean)
+        if (!ids.length) return alert('Choose a listing (or All listings).')
+
+        // delete per-day blackouts for those dates
+        await supabase.from('listing_blackouts')
+          .delete()
+          .in('listing_id', ids)
+          .in('start_date', dates)
+
+        // delete promos overlapping the selected range
+        const startSel = dates[0], endSel = dates[dates.length-1]
+        await supabase.from('listing_promotions')
+          .delete()
+          .in('listing_id', ids)
+          .lte('start_date', endSel)
+          .gte('end_date', startSel)
+
+        selection.clear()
+        await loadMonthData(); render()
+        alert('Removed blackout/promo entries for the selected dates.')
+      } catch (e) {
+        console.error(e)
+        alert('Could not remove entries: ' + (e?.message || e))
+      }
+    })
+
+    // nav + filters
+    prevBtn.addEventListener('click', ()=>{ view.setMonth(view.getMonth()-1); refresh() })
+    nextBtn.addEventListener('click', ()=>{ view.setMonth(view.getMonth()+1); refresh() })
+    ;[fRent,fLend,fOwner,fPerson].forEach(cb => cb.addEventListener('change', render))
+
+    async function refresh(){ await loadMonthData(); render() }
+
+    // Promo modal wiring
+    const promoModal = $('#promo-modal')
+    $('#btn-promo').addEventListener('click', ()=>{
+      const dates = Array.from(selection).sort()
+      const start = dates[0] || iso(view.getFullYear(),view.getMonth(),1)
+      const end   = dates[dates.length-1] || iso(view.getFullYear(),view.getMonth(),daysInMonth(view))
+      $('#promo-start').value = start
+      $('#promo-end').value = end
+      $('#promo-scope').value = listingSel.value === 'ALL' ? 'ALL' : 'selected'
+      promoModal.showModal()
+    })
+    $('#promo-cancel').addEventListener('click', ()=>promoModal.close())
+    $('#promo-save').addEventListener('click', async ()=>{
+      try {
+        const scope = $('#promo-scope').value
+        const type  = $('#promo-type').value
+        const start = $('#promo-start').value
+        const end   = $('#promo-end').value
+        const t1v   = parseFloat($('#t1-value').value) || null
+        const t1min = parseInt($('#t1-min').value,10) || null
+        const t1max = parseInt($('#t1-max').value,10) || null
+        const t2v   = parseFloat($('#t2-value').value) || null
+        const t2min = parseInt($('#t2-min').value,10) || null
+        const t2max = parseInt($('#t2-max').value,10) || null
+
+        if (!start || !end) return alert('Choose a promo date range.')
+
+        let ids = []
+        if (scope === 'ALL' || listingSel.value === 'ALL') ids = (myListings||[]).map(l => l.id)
+        else {
+          const id = parseInt(listingSel.value,10)
+          if (!id) return alert('Choose a listing first (or All listings).')
+          ids = [id]
+        }
+        if (!ids.length) return alert('No listings available.')
+
+        // replace overlapping promos for these listings+range
+        await supabase.from('listing_promotions')
+          .delete()
+          .in('listing_id', ids)
+          .lte('start_date', end)
+          .gte('end_date', start)
+
+        const rows = ids.map(id => ({
+          listing_id: id,
+          kind: type,                       // 'percent' or 'flat'
+          tier1_value: t1v,
+          tier1_min_days: t1min,
+          tier1_max_days: t1max,
+          tier2_value: t2v,
+          tier2_min_days: t2min,
+          tier2_max_days: t2max,
+          start_date: start,
+          end_date: end
+        }))
+        const { error } = await supabase.from('listing_promotions').insert(rows)
+        if (error) throw error
+
+        promoModal.close()
+        alert('Promotional pricing saved.')
+        await refresh()
+      } catch (e) {
+        console.warn('Promo save failed (OK to ignore if listing_promotions is not set up):', e)
+        alert('Could not save promo. Ensure the listing_promotions table schema/policies are in place.')
+      }
+    })
+
+    // allow ?focus=YYYY-MM-DD
+    const params = new URLSearchParams(location.search)
+    const focus = params.get('focus')
+    if (focus && /^\d{4}-\d{2}-\d{2}$/.test(focus)) {
+      const f = parseLocal(focus)
+      if (!Number.isNaN(f.getTime())) view = new Date(f.getFullYear(), f.getMonth(), 1)
+    }
+
+    await refresh()
+    supabase.auth.onAuthStateChange(async ()=>{ await refresh() })
+  </script>
+
+  <script src="script.js" defer></script>
+</body>
+</html>

@@ -10,12 +10,13 @@
       <a href="rentals.html">Rentals</a>
       <a href="about.html">About</a>
       <a href="contact.html">Contact</a>
+      <!-- optional: put Calendar up here too if you want it visible to everyone -->
+      <!-- <a href="calendar.html">Calendar</a> -->
     </nav>
 
     <!-- Avatar / account menu -->
     <div class="topbar__actions">
       <button class="topbar__profile" aria-expanded="false" aria-haspopup="menu" title="Account">
-        <!-- simple person icon -->
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
           <path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="currentColor" stroke-width="2" fill="none"/>
@@ -29,9 +30,9 @@
         </div>
         <!-- signed IN -->
         <div data-when="signed-in" hidden>
-          <a href="admin.html" role="menuitem">Lending dashboard</a>
-          <a href="rentals.html" role="menuitem">Renting dashboard</a>
-          <a href="#" role="menuitem">Calendar</a>
+          <a href="lender-dashboard.html" role="menuitem">Lending dashboard</a>
+          <a href="renter-dashboard.html" role="menuitem">Renting dashboard</a>
+          <a href="calendar.html" role="menuitem">Calendar</a>
           <hr style="border:none;border-top:1px solid #2a2a2a;margin:.25rem .4rem;" />
           <button type="button" data-action="logout" class="menu-logout" role="menuitem">Log out</button>
         </div>
@@ -56,18 +57,15 @@
       Rent reliable gear from locals with clear pickup windows, optional delivery, and honest inventory.
     </p>
 
-    <!-- Search: icons live inside the field -->
     <form class="hero__search" role="search" aria-label="Site search">
       <label for="hero-search-input" class="sr-only">Search</label>
       <input id="hero-search-input" class="hero__input" placeholder="Search gear…" autocomplete="off" />
       <button class="hero__clear" type="button" aria-label="Clear search">
-        <!-- × icon -->
         <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
         </svg>
       </button>
       <button class="hero__submit" type="submit" aria-label="Search">
-        <!-- magnifier icon -->
         <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/>
           <path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>

@@ -4,7 +4,7 @@ console.log("Baro script loaded!");
 window.initHero = function initHero() {
 
   /* =========================================================
-     Topbar dropdown + live auth state (runs on every page)
+     Topbar dropdown + auth state (runs on every page)
      ========================================================= */
   (function initTopbar() {
     const profileBtn = document.querySelector('.topbar__profile');
@@ -14,6 +14,7 @@ window.initHero = function initHero() {
     const sectionOut = menu.querySelector('[data-when="signed-out"]');
     const sectionIn  = menu.querySelector('[data-when="signed-in"]');
 
+    // open/close menu
     function openMenu(open) {
       profileBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
       menu.hidden = !open;
@@ -22,66 +23,41 @@ window.initHero = function initHero() {
     document.addEventListener('click', () => openMenu(false));
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') openMenu(false); });
 
-    function setSignedState(signedIn) {
+    // helper: flip signed-in/signed-out sections
+    function setMenuState(signedIn) {
       if (sectionOut) sectionOut.hidden = signedIn;
       if (sectionIn)  sectionIn.hidden  = !signedIn;
     }
 
-    // Auth-guarded pages (admin.html is intentionally NOT here so users can sign in)
-    const AUTH_GUARD_PATH = /(?:^|\/)(dashboard\.html|listing-(?:new|edit)\.html|account\.html)(?:$|\?)/;
-
+    // Try Supabase, but never auto-redirect on load
     (async () => {
       try {
         const SUPABASE_URL = window.SUPABASE_URL || 'https://lxplphqfkdvjtphafcyt.supabase.co';
         const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY ||
           'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cGxwaHFma2R2anRwaGFmY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDAxOTQsImV4cCI6MjA3NTQxNjE5NH0.cRm0HrVuhEgALHiyOtlMQWMvDcFXFaBZvBOysshpzjU';
         const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const sb = window.__baroSupabase || createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        window.__baroSupabase = sb;
+        // initial state
+        const { data: { session } } = await supabase.auth.getSession();
+        setMenuState(!!session?.user);
 
-        const { data: { session } } = await sb.auth.getSession();
-        setSignedState(!!session?.user);
-
-        // react to auth changes
-        sb.auth.onAuthStateChange((_event, newSession) => {
-          const signedIn = !!newSession?.user;
-          setSignedState(signedIn);
-          if (!signedIn && AUTH_GUARD_PATH.test(location.pathname)) {
-            try { location.assign('index.html'); } catch { location.assign('/'); }
-          }
-        });
-
-        // react if another script updates storage
-        window.addEventListener('storage', (e) => {
-          if (!e.key) return;
-          if (e.key.includes('sb-') && e.key.endsWith('-auth-token')) {
-            try {
-              const v = JSON.parse(e.newValue || '{}');
-              const signedIn = !!v?.currentSession?.user;
-              setSignedState(signedIn);
-              if (!signedIn && AUTH_GUARD_PATH.test(location.pathname)) {
-                try { location.assign('index.html'); } catch { location.assign('/'); }
-              }
-            } catch {}
-          }
-        });
-
-        // logout -> go home
+        // logout: explicit navigation only here
         const logoutBtn = menu.querySelector('[data-action="logout"]');
         if (logoutBtn) logoutBtn.addEventListener('click', async () => {
-          await sb.auth.signOut();
-          openMenu(false);
-          // If already on home, just reload; otherwise go home.
-          if (location.pathname.endsWith('/index.html') || location.pathname === '/' || location.pathname.endsWith('index.html')) {
-            location.reload();
-          } else {
-            try { location.assign('index.html'); } catch { location.assign('/'); }
-          }
+          await supabase.auth.signOut();
+          window.location.href = 'index.html';
         });
 
+        // keep menu in sync without navigating
+        supabase.auth.onAuthStateChange((_event, s) => {
+          setMenuState(!!s?.user);
+          // No auto-redirects here. Account/admin pages must remain reachable
+          // while signed out so users can log in.
+        });
       } catch {
-        setSignedState(false);
+        // If Supabase import fails, default to signed-out
+        setMenuState(false);
       }
     })();
   })();
@@ -148,7 +124,7 @@ window.initHero = function initHero() {
   function computeArticle(label) {
     const l = (label || "").toLowerCase().trim();
     if (l.startsWith("pair of ")) return "a";
-    if (l.startsWith("e-") || l.startsWith("e ")) return "an"; // an e-bike
+    if (l.startsWith("e-") || l.startsWith("e ")) return "an";
     return "aeiou".includes(l[0]) ? "an" : "a";
   }
 

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BARO • Renter Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    main { padding:2rem 1rem; max-width:1100px; margin:0 auto; }
+    .panel { background:#fff; padding:1rem; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.08); margin-bottom:1rem; }
+    .row { display:flex; gap:1rem; flex-wrap:wrap; }
+    .row > * { flex:1 1 260px; }
+    .muted { color:#555; font-size:.95rem; }
+    .hidden { display:none; }
+    .table { width:100%; border-collapse:collapse; }
+    .table th, .table td { padding:.55rem .4rem; border-bottom:1px solid #eee; text-align:left; }
+    .badge { display:inline-block; padding:.2rem .55rem; border-radius:999px; font-weight:700; font-size:.85rem; border:1px solid transparent; }
+    .b-pending { background:#fff7e6; color:#b36b00; border-color:#ffd188; }
+    .b-confirmed { background:#e6ffed; color:#0a6; border-color:#b5f0c5; }
+    .b-cancelled { background:#ffe6e6; color:#b00020; border-color:#f5b5b5; }
+    .actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+    .btn { background:#000; color:#fff; border:none; border-radius:8px; padding:.5rem .8rem; cursor:pointer; text-decoration:none; }
+    .btn.secondary { background:#444; }
+    .filters { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin:.25rem 0 .75rem; }
+    .pill { padding:.25rem .6rem; border-radius:999px; border:1px solid #ddd; background:#fff; cursor:pointer; user-select:none; }
+    .pill[aria-current="true"] { background:#000; color:#fff; border-color:#000; }
+  </style>
+</head>
+<body>
+  <!-- Shared header -->
+  <div id="header"></div>
+  <script>
+    (async () => {
+      const m = document.getElementById('header');
+      const res = await fetch('header.html', { cache:'no-store' });
+      m.innerHTML = await res.text();
+      const boot = () => window.initHero && window.initHero();
+      if (document.readyState === 'complete') boot(); else addEventListener('load', boot);
+    })();
+  </script>
+
+  <main>
+    <h2 style="text-align:center;">Your Rentals</h2>
+
+    <div class="panel" id="guard">
+      <p class="muted">You need to be logged in to view your reservations.</p>
+      <a class="btn" href="admin.html">Log in</a>
+    </div>
+
+    <div class="panel hidden" id="dash">
+      <div class="filters">
+        <span class="pill" data-filter="upcoming" aria-current="true">Upcoming</span>
+        <span class="pill" data-filter="pending">Pending</span>
+        <span class="pill" data-filter="past">Past</span>
+        <span class="pill" data-filter="cancelled">Cancelled</span>
+        <a class="btn secondary" href="calendar.html" style="margin-left:auto;">Open calendar</a>
+      </div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Dates</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th style="width:260px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+
+      <p id="empty" class="muted">No reservations in this view.</p>
+    </div>
+  </main>
+
+  <footer><p>Servicing Location: Anchorage, AK</p><p>© 2025 Baro</p></footer>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+    const SUPABASE_URL = 'https://lxplphqfkdvjtphafcyt.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cGxwaHFma2R2anRwaGFmY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDAxOTQsImV4cCI6MjA3NTQxNjE5NH0.cRm0HrVuhEgALHiyOtlMQWMvDcFXFaBZvBOysshpzjU'
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    const $ = (s)=>document.querySelector(s)
+    const guard = $('#guard'), dash = $('#dash'), tbody = $('#tbody'), empty = $('#empty')
+    let filter = 'upcoming'
+    document.querySelectorAll('.pill').forEach(p=>p.addEventListener('click',()=>{
+      document.querySelectorAll('.pill').forEach(x=>x.setAttribute('aria-current','false'))
+      p.setAttribute('aria-current','true')
+      filter = p.dataset.filter
+      render()
+    }))
+
+    const fmtMoney = c => `$${(c/100).toFixed(2)}`
+    const fmtDate = d => new Date(d).toLocaleDateString()
+
+    let all = []
+    async function load() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) { guard.classList.remove('hidden'); dash.classList.add('hidden'); return }
+      guard.classList.add('hidden'); dash.classList.remove('hidden')
+
+      const { data, error } = await supabase
+        .from('reservations')
+        .select('id, listing_id, start_date, end_date, status, amount_cents, listings!inner(title, owner_id)')
+        .eq('renter_id', session.user.id)
+        .order('start_date', { ascending: true })
+
+      all = data || []
+      render()
+    }
+
+    function render() {
+      const now = new Date().toISOString().slice(0,10)
+      let rows = all
+      if (filter === 'upcoming') rows = all.filter(r => r.status === 'confirmed' && r.end_date >= now)
+      if (filter === 'pending')  rows = all.filter(r => r.status === 'pending')
+      if (filter === 'past')     rows = all.filter(r => r.end_date < now && r.status !== 'cancelled')
+      if (filter === 'cancelled')rows = all.filter(r => r.status === 'cancelled')
+
+      tbody.innerHTML = ''
+      if (!rows.length) { empty.classList.remove('hidden'); return } else empty.classList.add('hidden')
+
+      for (const r of rows) {
+        const tr = document.createElement('tr')
+        const badge = r.status === 'pending' ? 'b-pending' : r.status === 'cancelled' ? 'b-cancelled' : 'b-confirmed'
+        tr.innerHTML = `
+          <td>${r.listings?.title ?? 'Listing #'+r.listing_id}</td>
+          <td>${fmtDate(r.start_date)} → ${fmtDate(r.end_date)}</td>
+          <td>${fmtMoney(r.amount_cents)}</td>
+          <td><span class="badge ${badge}">${r.status}</span></td>
+          <td class="actions">
+            <a class="btn secondary" href="listing.html?id=${encodeURIComponent(r.listing_id)}">View listing</a>
+            <a class="btn" href="calendar.html?focus=${r.start_date}">Show in calendar</a>
+          </td>`
+        tbody.appendChild(tr)
+      }
+    }
+
+    // boot
+    await load()
+    // also update if auth changes in another tab
+    supabase.auth.onAuthStateChange(()=>load())
+  </script>
+
+  <script src="script.js" defer></script>
+</body>
+</html>

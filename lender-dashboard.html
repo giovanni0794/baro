@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BARO • Lender Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    main { padding:2rem 1rem; max-width:1100px; margin:0 auto; }
+    .panel { background:#fff; padding:1rem; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.08); margin-bottom:1rem; }
+    .muted { color:#555; }
+    .tabs { display:flex; gap:.5rem; flex-wrap:wrap; margin:.25rem 0 1rem 0; }
+    .tab { padding:.35rem .7rem; border:1px solid #ddd; border-radius:999px; cursor:pointer; user-select:none; background:#fff; }
+    .tab[aria-current="true"]{ background:#000; color:#fff; border-color:#000; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { text-align:left; padding:.5rem .4rem; border-bottom:1px solid #eee; vertical-align:top; }
+    .chip { display:inline-block; padding:.15rem .5rem; border-radius:999px; font-weight:700; border:1px solid transparent; }
+    .chip.pending { background:#fff7e6; color:#b36b00; border-color:#ffd188; }
+    .chip.confirmed { background:#e6ffed; color:#0a6; border-color:#b5f0c5; }
+    .chip.cancelled { background:#ffe6e6; color:#b00020; border-color:#f5b5b5; }
+    .row-actions { display:flex; gap:.4rem; flex-wrap:wrap; }
+    .btn { background:var(--accent); color:#fff; border:none; border-radius:6px; padding:.45rem .7rem; cursor:pointer; }
+    .btn.secondary { background:#444; }
+    .note-box { margin-top:.35rem; background:#fafafa; border:1px solid #eee; border-radius:8px; padding:.5rem; }
+    .note-list { display:flex; flex-direction:column; gap:.4rem; margin:.4rem 0; max-height:200px; overflow:auto; }
+    .note-item { font-size:.95rem; background:#fff; border:1px solid #eee; border-radius:8px; padding:.4rem .5rem; }
+    .note-author { font-weight:700; }
+    .note-when { color:#666; font-size:.85rem; }
+    .fieldline { display:flex; gap:.4rem; margin-top:.35rem; }
+    .fieldline input, .fieldline textarea { flex:1; padding:.45rem .6rem; border:1px solid #ccc; border-radius:6px; }
+    .empty { text-align:center; padding:.75rem; color:#555; }
+  </style>
+</head>
+<body>
+  <!-- Shared header -->
+  <div id="header"></div>
+  <script>
+    (async () => {
+      const mount = document.getElementById('header');
+      try {
+        const res = await fetch('header.html', { cache: 'no-store' });
+        mount.innerHTML = await res.text();
+      } catch(e){ console.error('header load failed', e); }
+      const boot = () => { if (window.initHero) window.initHero(); };
+      if (document.readyState === 'complete') boot(); else window.addEventListener('load', boot);
+    })();
+  </script>
+
+  <main>
+    <h2 style="text-align:center; margin-bottom:1rem;">Lender Dashboard</h2>
+
+    <!-- Signed-out notice -->
+    <div id="signed-out" class="panel" style="display:none;">
+      <p class="muted">Please log in to view and manage your reservations.</p>
+      <a href="admin.html"><button class="btn">Log in</button></a>
+      <a href="admin.html"><button class="btn secondary">Create account</button></a>
+    </div>
+
+    <!-- Dashboard -->
+    <section id="dash" class="panel" style="display:none;">
+      <div class="tabs" role="tablist" aria-label="Reservations">
+        <button class="tab" data-tab="upcoming" aria-current="true" role="tab">Upcoming</button>
+        <button class="tab" data-tab="pending" role="tab">Pending</button>
+        <button class="tab" data-tab="past" role="tab">Past</button>
+        <button class="tab" data-tab="cancelled" role="tab">Cancelled</button>
+      </div>
+
+      <div id="list-wrap">
+        <div class="empty" id="empty">Loading…</div>
+        <table id="tbl" style="display:none;">
+          <thead>
+            <tr>
+              <th>Listing</th>
+              <th>Guest</th>
+              <th>Dates</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th>Flags</th>
+              <th style="min-width:210px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer style="text-align:center; padding:1rem;">
+    <p>Servicing Location: Anchorage, AK</p>
+    <p>© 2025 Baro</p>
+  </footer>
+
+  <!-- Page logic -->
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+    const SUPABASE_URL = 'https://lxplphqfkdvjtphafcyt.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cGxwaHFma2R2anRwaGFmY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDAxOTQsImV4cCI6MjA3NTQxNjE5NH0.cRm0HrVuhEgALHiyOtlMQWMvDcFXFaBZvBOysshpzjU'
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    const $ = (id) => document.getElementById(id)
+    const out = $('signed-out')
+    const dash = $('dash')
+    const rowsEl = $('rows')
+    const emptyEl = $('empty')
+    const tbl = $('tbl')
+
+    let all = []
+    let currentTab = 'upcoming'
+    let me = null
+    let myId = null
+    let myProfile = null
+
+    // auth gate
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) { out.style.display = 'block'; return }
+    me = session.user
+    myId = me.id
+    dash.style.display = 'block'
+
+    // optional: load profile flags (admin/lender)
+    {
+      const { data } = await supabase.from('profiles').select('is_admin,is_lender,display_name,nickname').eq('id', myId).single()
+      myProfile = data || null
+    }
+
+    // tabs
+    document.querySelectorAll('.tab').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-current','false'))
+        btn.setAttribute('aria-current','true')
+        currentTab = btn.dataset.tab
+        render()
+      })
+    })
+
+    // fetch reservations for listings I own
+    await loadData()
+    render()
+
+    async function loadData() {
+      emptyEl.textContent = 'Loading…'
+      tbl.style.display = 'none'
+      rowsEl.innerHTML = ''
+
+      const { data, error } = await supabase
+        .from('reservations')
+        .select(`
+          id, listing_id, renter_id, start_date, end_date, amount_cents, status,
+          requires_delivery, delivery_address, cancelled_at, cancelled_by_role, cancel_notes,
+          listings!inner ( id, title, owner_id ),
+          renter:profiles!reservations_renter_id_fkey ( id, display_name, nickname )
+        `)
+        .eq('listings.owner_id', myId)
+        .order('start_date', { ascending:true })
+
+      if (error) { emptyEl.textContent = 'Error loading reservations.'; return }
+      all = data || []
+    }
+
+    function fmtDate(d){ return new Date(d).toLocaleDateString() }
+    function fmtMoney(c){ return '$' + (c/100).toFixed(2) }
+    function chip(status){
+      const s = String(status||'').toLowerCase()
+      return s === 'pending'   ? '<span class="chip pending">pending</span>'
+           : s === 'confirmed' ? '<span class="chip confirmed">confirmed</span>'
+           : s === 'cancelled' ? '<span class="chip cancelled">cancelled</span>'
+           : s
+    }
+    function guestName(r){
+      return r?.renter?.nickname || r?.renter?.display_name || 'Guest'
+    }
+    function isUpcoming(r){
+      const today = new Date(); today.setHours(0,0,0,0)
+      return r.status === 'confirmed' && new Date(r.start_date) >= today
+    }
+    function isPast(r){
+      const today = new Date(); today.setHours(0,0,0,0)
+      return r.status === 'confirmed' && new Date(r.end_date) < today
+    }
+    function filtered(){
+      if (currentTab === 'pending') return all.filter(r=>r.status==='pending')
+      if (currentTab === 'cancelled') return all.filter(r=>r.status==='cancelled')
+      if (currentTab === 'past') return all.filter(isPast)
+      return all.filter(isUpcoming)
+    }
+
+    async function handleConfirm(id){
+      const { error } = await supabase.from('reservations').update({ status:'confirmed' }).eq('id', id)
+      if (error) return alert('Confirm failed: ' + error.message)
+      await loadData(); render()
+    }
+    async function handleCancel(id){
+      const notes = prompt('Add optional cancel notes:', '') || null
+      const role = (myProfile?.is_admin) ? 'admin' : 'owner'
+      const { error } = await supabase.from('reservations').update({
+        status:'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancelled_by_role: role,
+        cancel_notes: notes
+      }).eq('id', id)
+      if (error) return alert('Cancel failed: ' + error.message)
+      await loadData(); render()
+    }
+
+    async function loadNotes(reservationId){
+      const { data, error } = await supabase
+        .from('reservation_private_notes')
+        .select('id, author_user_id, note, created_at')
+        .eq('reservation_id', reservationId)
+        .order('created_at', { ascending:true })
+      if (error) return []
+      return data || []
+    }
+    async function addNote(reservationId, text){
+      const { error } = await supabase
+        .from('reservation_private_notes')
+        .insert({ reservation_id: reservationId, author_user_id: myId, note: text })
+      if (error) { alert('Note failed: ' + error.message); return false }
+      return true
+    }
+    function escapeHTML(s){ return String(s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;' }[c])) }
+
+    async function toggleNotes(rowEl, reservation){
+      let box = rowEl.querySelector('.note-box')
+      if (box) { box.remove(); return } // collapse
+
+      box = document.createElement('div')
+      box.className = 'note-box'
+      box.innerHTML = `
+        <div class="note-list"><em class="muted">Loading notes…</em></div>
+        <div class="fieldline">
+          <input type="text" placeholder="Add a private note (host/admin only)"/>
+          <button class="btn" data-action="save">Save</button>
+        </div>
+      `
+      rowEl.querySelector('td:last-child').appendChild(box)
+
+      const listEl = box.querySelector('.note-list')
+      const refresh = async () => {
+        listEl.innerHTML = '<em class="muted">Loading notes…</em>'
+        const notes = await loadNotes(reservation.id)
+        if (!notes.length) { listEl.innerHTML = '<span class="muted">No notes yet.</span>'; return }
+        listEl.innerHTML = notes.map(n =>
+          `<div class="note-item">
+            <div class="note-author">${n.author_user_id === myId ? 'You' : 'User ' + n.author_user_id.slice(0,8)}</div>
+            <div>${escapeHTML(n.note)}</div>
+            <div class="note-when">${new Date(n.created_at).toLocaleString()}</div>
+          </div>`
+        ).join('')
+      }
+      await refresh()
+
+      box.querySelector('[data-action="save"]').addEventListener('click', async () => {
+        const inp = box.querySelector('input')
+        const text = inp.value.trim()
+        if (!text) return
+        const ok = await addNote(reservation.id, text)
+        if (ok) { inp.value=''; await refresh() }
+      })
+    }
+
+    function render(){
+      const list = filtered()
+      rowsEl.innerHTML = ''
+      if (!list.length) {
+        emptyEl.textContent = 'No reservations to display.'
+        tbl.style.display = 'none'
+        return
+      }
+      emptyEl.textContent = ''
+      tbl.style.display = 'table'
+
+      for (const r of list) {
+        const tr = document.createElement('tr')
+        const flags = [
+          r.requires_delivery ? 'Requires delivery' : null,
+          r.delivery_address ? ('Address: ' + escapeHTML(r.delivery_address)) : null
+        ].filter(Boolean).join('<br/>')
+
+        const actions = []
+        if (r.status === 'pending') {
+          actions.push(`<button class="btn" data-act="confirm" data-id="${r.id}">Confirm</button>`)
+          actions.push(`<button class="btn secondary" data-act="cancel" data-id="${r.id}">Cancel</button>`)
+        } else if (r.status === 'confirmed') {
+          actions.push(`<button class="btn secondary" data-act="cancel" data-id="${r.id}">Cancel</button>`)
+        }
+        actions.push(`<button class="btn secondary" data-act="notes" data-id="${r.id}">Notes</button>`)
+
+        tr.innerHTML = `
+          <td>${escapeHTML(r.listings?.title || 'Listing #' + r.listing_id)}</td>
+          <td>${escapeHTML(guestName(r))}</td>
+          <td>${fmtDate(r.start_date)} → ${fmtDate(r.end_date)}</td>
+          <td>${fmtMoney(r.amount_cents)}</td>
+          <td>${chip(r.status)}</td>
+          <td>${flags || '—'}</td>
+          <td class="row-actions">${actions.join(' ')}</td>
+        `
+        rowsEl.appendChild(tr)
+      }
+
+      // wire actions
+      rowsEl.querySelectorAll('[data-act="confirm"]').forEach(btn=>{
+        btn.addEventListener('click', async (e)=>{ await handleConfirm(parseInt(e.currentTarget.dataset.id,10)) })
+      })
+      rowsEl.querySelectorAll('[data-act="cancel"]').forEach(btn=>{
+        btn.addEventListener('click', async (e)=>{ await handleCancel(parseInt(e.currentTarget.dataset.id,10)) })
+      })
+      rowsEl.querySelectorAll('[data-act="notes"]').forEach(btn=>{
+        btn.addEventListener('click', async (e)=>{
+          const id = parseInt(e.currentTarget.dataset.id,10)
+          const row = e.currentTarget.closest('tr')
+          const r = all.find(x=>x.id===id)
+          await toggleNotes(row, r)
+        })
+      })
+    }
+  </script>
+
+  <!-- Global script (topbar + hero init) -->
+  <script src="script.js" defer></script>
+</body>
+</html>

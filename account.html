@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BARO • Account</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    main { padding:2rem 1rem; max-width:900px; margin:0 auto; }
+    .panel { background:#fff; padding:1rem; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.08); margin-bottom:1rem; }
+    .row { display:flex; gap:1rem; flex-wrap:wrap; }
+    .row > * { flex:1 1 260px; }
+    label { display:block; margin:.5rem 0 .25rem; font-weight:600; }
+    input, select, textarea { width:100%; padding:.6rem; border:1px solid #ccc; border-radius:6px; box-sizing:border-box; }
+    textarea { min-height:110px; }
+    .muted { color:#555; font-size:.95rem; }
+    .actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+    .cta { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.5rem; }
+    button { background:var(--accent); color:#fff; border:none; border-radius:6px; padding:.6rem 1rem; cursor:pointer; }
+    button.secondary { background:#444; }
+    .switch { display:flex; align-items:center; gap:.5rem; margin-top:.5rem; }
+    .radio-group { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; }
+    .status { margin-top:.5rem; min-height:1.25rem; }
+  </style>
+</head>
+<body>
+  <!-- Shared header -->
+  <div id="header"></div>
+  <script>
+    (async () => {
+      const mount = document.getElementById('header');
+      try {
+        const res = await fetch('header.html', { cache: 'no-store' });
+        mount.innerHTML = await res.text();
+      } catch (e) {
+        console.error('Failed to load header.html', e);
+      }
+      const boot = () => { if (window.initHero) window.initHero(); };
+      if (document.readyState === 'complete') boot(); else window.addEventListener('load', boot);
+    })();
+  </script>
+
+  <main>
+    <h2 style="text-align:center; margin-bottom:1rem;">Account</h2>
+
+    <!-- Signed-out notice -->
+    <div id="signed-out" class="panel" style="display:none;">
+      <p class="muted">Please log in to manage your profile.</p>
+      <div class="actions">
+        <a href="admin.html"><button>Log in</button></a>
+        <a href="admin.html"><button class="secondary">Create account</button></a>
+      </div>
+    </div>
+
+    <!-- Profile panel -->
+    <section id="profile-panel" class="panel" style="display:none;">
+      <h3>Profile</h3>
+      <p class="muted">This is your default hub. Public profile shows only what’s safe: nickname, city/ZIP, and your bio. Exact addresses are never shown.</p>
+
+      <div class="row">
+        <div>
+          <label for="display_name">Full name (legal)</label>
+          <input id="display_name" placeholder="Jane Q. Lender" />
+        </div>
+        <div>
+          <label for="nickname">Nickname (I go by)</label>
+          <input id="nickname" placeholder="Jane" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="phone">Phone</label>
+          <input id="phone" placeholder="(907) 555-0123" />
+          <p class="muted">SMS verification later. Not shared by default.</p>
+        </div>
+        <div>
+          <label for="public_city">Public city</label>
+          <input id="public_city" placeholder="Anchorage" />
+        </div>
+        <div>
+          <label for="public_zip">Public ZIP</label>
+          <input id="public_zip" placeholder="99501" />
+        </div>
+      </div>
+
+      <div>
+        <label>Preferred contact</label>
+        <div class="radio-group">
+          <label><input type="radio" name="preferred_contact" value="email" checked> Email</label>
+          <label><input type="radio" name="preferred_contact" value="phone"> Phone</label>
+          <label><input type="radio" name="preferred_contact" value="app"> In-app</label>
+        </div>
+      </div>
+
+      <div style="margin-top:.5rem;">
+        <label for="bio">Bio</label>
+        <textarea id="bio" placeholder="Short intro for renters/lenders…"></textarea>
+      </div>
+
+      <div class="switch">
+        <input id="share_phone_on_booking" type="checkbox" />
+        <label for="share_phone_on_booking" style="margin:0;">Share my phone after a booking is confirmed</label>
+      </div>
+
+      <div class="actions" style="margin-top:1rem;">
+        <button id="btn-save">Save</button>
+        <span id="save-status" class="status muted"></span>
+      </div>
+
+      <div class="cta">
+        <a href="admin.html"><button class="secondary">Create new listing</button></a>
+        <a href="#" id="view-public"><button class="secondary">View public profile</button></a>
+      </div>
+    </section>
+  </main>
+
+  <footer style="text-align:center; padding:1rem;">
+    <p>Servicing Location: Anchorage, AK</p>
+    <p>© 2025 Baro</p>
+  </footer>
+
+  <!-- Supabase module + page logic -->
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+    const SUPABASE_URL = 'https://lxplphqfkdvjtphafcyt.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cGxwaHFma2R2anRwaGFmY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDAxOTQsImV4cCI6MjA3NTQxNjE5NH0.cRm0HrVuhEgALHiyOtlMQWMvDcFXFaBZvBOysshpzjU'
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    const $ = (id) => document.getElementById(id)
+    const out = $('signed-out')
+    const panel = $('profile-panel')
+    const saveBtn = $('btn-save')
+    const statusEl = $('save-status')
+
+    const fields = ['display_name','nickname','phone','public_city','public_zip','bio']
+
+    function setStatus(msg, ok=true){ statusEl.textContent = msg; statusEl.style.color = ok ? '#555' : '#b00020' }
+
+    // Boot
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) {
+      out.style.display = 'block'
+    } else {
+      panel.style.display = 'block'
+      const uid = session.user.id
+
+      // ensure row exists
+      await supabase.from('profiles').upsert({ id: uid, display_name: session.user.email }, { onConflict:'id' })
+
+      // load existing
+      const { data, error } = await supabase.from('profiles').select(`
+        display_name, nickname, phone, public_city, public_zip,
+        preferred_contact, bio, share_phone_on_booking
+      `).eq('id', uid).single()
+
+      if (!error && data) {
+        for (const k of fields) { if (data[k] != null) $(k).value = data[k] }
+        if (data.preferred_contact) {
+          const r = document.querySelector(\`input[name="preferred_contact"][value="\${data.preferred_contact}"]\`)
+          if (r) r.checked = true
+        }
+        $('share_phone_on_booking').checked = !!data.share_phone_on_booking
+      }
+
+      // view public (placeholder)
+      document.getElementById('view-public').addEventListener('click', (e)=>{
+        e.preventDefault()
+        alert('Public profile page coming soon.')
+      })
+
+      // save
+      saveBtn.addEventListener('click', async ()=>{
+        setStatus('Saving…')
+        const payload = Object.fromEntries(fields.map(k => [k, $(k).value.trim()]))
+        payload.share_phone_on_booking = $('share_phone_on_booking').checked
+        payload.preferred_contact = document.querySelector('input[name="preferred_contact"]:checked')?.value || 'email'
+
+        const { error: upErr } = await supabase.from('profiles').update(payload).eq('id', uid)
+        if (upErr) { setStatus('Save failed: ' + upErr.message, false); return }
+        setStatus('Saved ✅')
+      })
+    }
+  </script>
+
+  <!-- Global script (topbar + hero search init) -->
+  <script src="script.js" defer></script>
+</body>
+</html>
