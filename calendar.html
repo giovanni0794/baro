@@ -59,7 +59,6 @@
       display:inline-grid; place-items:center; font-size:12px; line-height:1;
     }
     .filter-toggle[data-on="true"]{ box-shadow: inset 0 0 0 2px #0002; color:#111; }
-    .filter-lend [data-on="true"], .filter-rent [data-on="true"], .filter-owner [data-on="true"], .filter-store [data-on="true"]{}
     .filter-lend[data-on="true"] { background:#e5fff0; color:#065f46; border-color:#bdebd8; }
     .filter-rent[data-on="true"] { background:#e9f2ff; color:#0b57d0; border-color:#c8dcff; }
     .filter-owner[data-on="true"]{ background:#fff1e6; color:#b36b00; border-color:#ffd8b5; }
@@ -82,30 +81,42 @@
     .past { background:#e9e9e9; color:#666; }
     .today .date{ outline:2px solid #0b57d0; outline-offset:2px; border-radius:999px; padding:.1rem .35rem; }
 
+    /* summary chips zone under date */
     .chips { margin-top:.2rem; display:flex; flex-direction:column; gap:.2rem; max-height:66px; overflow:hidden; }
     .chip { display:inline-flex; align-items:center; gap:.35rem; font-size:.78rem; border-radius:6px; padding:.15rem .35rem; width:max-content; line-height:1.15; }
-    /* rentals as edges only */
+    /* rentals as edges only (kept for renter summary) */
     .chip-rent-start { background:#fff; color:#0b57d0; border:2px solid #0b57d0; }
     .chip-rent-end   { background:#0b57d0; color:#fff; }
-    .chip-lend-start { background:#fff; color:#087f5b; border:2px solid #087f5b; }
-    .chip-lend-end   { background:#087f5b; color:#fff; }
-    /* blackouts */
-    .chip-block  { background:#fff1e6; color:#b36b00; }
-    .chip-store  { background:#ffe6e6; color:#b00020; }
-    .chip-more   { background:#eee; color:#555; }
-    .chip-promo  { background:#f0f5ff; color:#0052cc; }
-
-    .sel { outline:2px solid #0b57d0; outline-offset:-2px; background:#eef6ff; }
+    /* lender summaries */
+    .chip-sum        { background:#fff; border:1px solid #ddd; color:#111; }
+    .chip-sum.l-deliver { border-color:#0b57d0; color:#0b57d0; }   /* to deliver */
+    .chip-sum.l-handoff { border-color:#087f5b; color:#087f5b; }   /* pickup at owner / handoff */
+    .chip-sum.l-rtn-pu  { border-color:#b00020; color:#b00020; }   /* return pickup */
+    .chip-sum.l-rtn-due { border-color:#b36b00; color:#b36b00; }   /* return due at owner */
+    /* blackouts as bars */
+    .blk-lane { position:absolute; left:4px; right:4px; top:22px; height:16px; z-index:1; }
+    .blk-strip { position:absolute; left:0; right:0; height:16px; display:flex; align-items:center; justify-content:center; font-size:.72rem; line-height:1; pointer-events:none; }
+    .blk-owner { background:#fff1e6; color:#b36b00; }
+    .blk-store { background:#ffe6e6; color:#b00020; }
+    .run-solo { border-radius:8px; }
+    .run-start{ border-radius:8px 0 0 8px; }
+    .run-mid  { border-radius:0; }
+    .run-end  { border-radius:0 8px 8px 0; }
+    .bar-label { pointer-events:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 .3rem; }
+    .blk-strip:hover .bar-label, .promo-strip:hover .promo-label { animation: marquee 8s linear infinite; }
+    @keyframes marquee { from { transform:translateX(0) } to { transform:translateX(-40%) } }
 
     /* promo lane at bottom of each cell */
-    .promo-lane { position:absolute; left:4px; right:4px; bottom:4px; height:18px; }
+    .promo-lane { position:absolute; left:4px; right:4px; bottom:4px; height:18px; z-index:2; }
     .promo-strip { position:absolute; left:0; right:0; height:18px; background:#f0f5ff; color:#0052cc;
-      display:flex; align-items:center; justify-content:center; font-size:.72rem; line-height:1; }
+      display:flex; align-items:center; justify-content:center; font-size:.72rem; line-height:1; pointer-events:none; }
     .promo-run-solo { border-radius:8px; }
     .promo-run-start{ border-radius:8px 0 0 8px; }
     .promo-run-mid  { border-radius:0; }
     .promo-run-end  { border-radius:0 8px 8px 0; }
     .promo-label { pointer-events:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 .3rem; }
+
+    .sel { outline:2px solid #0b57d0; outline-offset:-2px; background:#eef6ff; }
 
     /* side panel */
     .panel { background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.08); padding:1rem; }
@@ -188,7 +199,7 @@
           </div>
         </section>
 
-        <!-- filter toggles (collapsible below header; same width) -->
+        <!-- filter toggles -->
         <div class="filters-row" id="filters" hidden>
           <button type="button" class="filter-toggle filter-lend"  data-key="lend"  data-on="true" aria-pressed="true">
             <span class="check" aria-hidden="true"></span> Lender obligations
@@ -210,7 +221,7 @@
           <div class="cal-grid" id="grid-days"></div>
         </section>
 
-        <!-- agenda (always visible) -->
+        <!-- agenda -->
         <section class="agenda" id="agenda">
           <h4 id="agenda-title">A peek at the week</h4>
           <div id="agenda-sub" class="subtitle"></div>
@@ -226,7 +237,6 @@
         <p class="hint">Select dates on the calendar to manage availability, store-wide blocks, and promotions across all your listings.</p>
 
         <div class="vgap">
-          <!-- Unavailable / Available -->
           <div>
             <label>Availability</label>
             <div class="btn-pair">
@@ -235,7 +245,6 @@
             </div>
           </div>
 
-          <!-- Block / Unblock store -->
           <div>
             <label>Store recall</label>
             <div class="btn-pair">
@@ -244,7 +253,6 @@
             </div>
           </div>
 
-          <!-- Promotions -->
           <div>
             <label>Promotions</label>
             <div class="btn-pair">
@@ -253,7 +261,6 @@
             </div>
           </div>
 
-          <!-- Cancel selection -->
           <button class="btn white btn-full" id="btn-clear">Cancel selection</button>
         </div>
       </aside>
@@ -397,6 +404,11 @@
       const el = document.createElement('div'); el.className='dow'; el.textContent=d; gridDow.appendChild(el)
     }
 
+    // deep link: ?listing=<id> will narrow counts + agenda to that listing
+    const params = new URLSearchParams(location.search)
+    const focusListingParam = params.get('listing')
+    const focusListingId = focusListingParam ? Number(focusListingParam) : null
+
     // state
     let session = null, userId = null, isAdmin = false, isLender = false
     let view = new Date(); view.setDate(1)
@@ -432,40 +444,37 @@
       const endISO   = iso(y,m,daysInMonth(view))
 
       if (userId) {
+        const baseSelect = 'id, listing_id, start_date, end_date, start_time, end_time, status, requires_delivery, listings!inner(title, owner_id)'
         const { data: rent } = await supabase
           .from('reservations')
-          .select('id, listing_id, start_date, end_date, start_time, end_time, status, listings!inner(title, owner_id)')
+          .select(baseSelect)
           .eq('renter_id', userId)
           .lte('start_date', endISO).gte('end_date', startISO)
 
         myRentals = (rent||[])
           .filter(r => !r.status || r.status.toLowerCase() !== 'cancelled')
-          .map(r => ({
-            ...r,
-            start_date_iso: r.start_date?.slice(0,10),
-            end_date_iso: r.end_date?.slice(0,10)
-          }))
+          .map(r => ({ ...r, start_date_iso: r.start_date?.slice(0,10), end_date_iso: r.end_date?.slice(0,10) }))
 
         const { data: lend } = await supabase
           .from('reservations')
-          .select('id, listing_id, start_date, end_date, start_time, end_time, status, listings!inner(title, owner_id)')
+          .select(baseSelect)
           .eq('listings.owner_id', userId)
           .lte('start_date', endISO).gte('end_date', startISO)
 
         myLending = (lend||[])
           .filter(r => !r.status || r.status.toLowerCase() !== 'cancelled')
-          .map(r => ({
-            ...r,
-            start_date_iso: r.start_date?.slice(0,10),
-            end_date_iso: r.end_date?.slice(0,10)
-          }))
+          .map(r => ({ ...r, start_date_iso: r.start_date?.slice(0,10), end_date_iso: r.end_date?.slice(0,10) }))
+
+        // optional focus to one listing
+        if (focusListingId) {
+          myRentals = myRentals.filter(r => r.listing_id === focusListingId)
+          myLending = myLending.filter(r => r.listing_id === focusListingId)
+        }
 
         if (isLender || isAdmin) {
           const { data: listings } = await supabase
-            .from('listings')
-            .select('id,title,owner_id')
-            .eq('owner_id', userId)
-            .order('title')
+            .from('listings').select('id,title,owner_id')
+            .eq('owner_id', userId).order('title')
           myListings = listings || []
         } else {
           myListings = []
@@ -530,6 +539,37 @@
       jumpYear.value  = String(view.getFullYear())
     }
 
+    function buildRunSegments(daySet, monthStartISO, monthEndISO){
+      // returns map date -> {class,label}
+      const days=[]
+      for (let d=parseLocal(monthStartISO); d<=parseLocal(monthEndISO); d=addDays(d,1)){
+        const isoS = toLocalISO(d)
+        if (daySet.has(isoS)) days.push(isoS)
+      }
+      const segByDate = {}
+      if (!days.length) return segByDate
+      // group consecutive
+      let run=[days[0]]
+      for (let i=1;i<days.length;i++){
+        const prev = parseLocal(days[i-1]), cur = parseLocal(days[i])
+        if ((cur - prev)/(1000*60*60*24) === 1){ run.push(days[i]); continue }
+        stampRun(run, segByDate); run=[days[i]]
+      }
+      stampRun(run, segByDate)
+      return segByDate
+
+      function stampRun(arr, out){
+        const L = arr.length, mid = Math.floor((L-1)/2)
+        for (let i=0;i<L;i++){
+          let klass='run-mid'
+          if (L===1) klass='run-solo'
+          else if (i===0) klass='run-start'
+          else if (i===L-1) klass='run-end'
+          out[arr[i]] = { class:klass, labelIndex: i===mid }
+        }
+      }
+    }
+
     function render() {
       const y=view.getFullYear(), m=view.getMonth()
       title.textContent = `${view.toLocaleString(undefined,{month:'long'})} ${y}`
@@ -545,44 +585,38 @@
         const pad = document.createElement('div'); pad.className='day past'; gridDays.appendChild(pad)
       }
 
-      // index helpers
-      const blkByDate = {}
-      for (const b of blackouts) (blkByDate[b.date] ||= []).push(b)
-
-      // reservations as edges only
-      const edgesByDate = {}
-      function addEdge(res, css, edge){
-        const dISO = edge === 'start' ? res.start_date_iso : res.end_date_iso
-        if (!dISO) return
-        ;(edgesByDate[dISO] ||= []).push({ css, edge, title:(res.listings?.title || `Listing #${res.listing_id}`), res })
+      // aggregate blackouts by kind into day sets (shop-wide view)
+      const ownerDays = new Set(), storeDays = new Set()
+      for (const b of blackouts) {
+        if (b.kind === 'owner_unavailable') ownerDays.add(b.date)
+        if (b.kind === 'store_blocked') storeDays.add(b.date)
       }
-      myRentals.forEach(r => { addEdge(r,'rent', 'start'); addEdge(r,'rent','end') })
-      myLending.forEach(r => { addEdge(r,'lend', 'start'); addEdge(r,'lend','end') })
+      const monthStartISO = iso(y,m,1), monthEndISO = iso(y,m,total)
+      const ownerSeg = buildRunSegments(ownerDays, monthStartISO, monthEndISO)
+      const storeSeg = buildRunSegments(storeDays, monthStartISO, monthEndISO)
 
       // precompute promos per day with run classes and a centered label
-      const monthStart = iso(y,m,1)
-      const monthEnd = iso(y,m,total)
-      const promoSegByDate = {} // dISO -> {class,label} (only first per day)
-      for (const p of promotions){
-        const ps = p.start_date.slice(0,10)
-        const pe = p.end_date.slice(0,10)
-        // intersect with current month
-        const start = parseLocal(ps) < parseLocal(monthStart) ? parseLocal(monthStart) : parseLocal(ps)
-        const end   = parseLocal(pe) > parseLocal(monthEnd)   ? parseLocal(monthEnd)   : parseLocal(pe)
-        if (end < start) continue
-        const days=[]
-        for (let d=new Date(start); d<=end; d=addDays(d,1)) days.push(toLocalISO(d))
-        const L = days.length
-        const midIdx = Math.floor((L-1)/2)
-        const label = p.kind==='percent' ? `${p.tier1_value ?? ''}% off` : `$${p.tier1_value ?? ''} off`
-        for (let i=0;i<L;i++){
-          const dISO = days[i]
-          if (promoSegByDate[dISO]) continue // only one lane for now
-          let klass = 'promo-run-mid'
-          if (L===1) klass='promo-run-solo'
-          else if (i===0) klass='promo-run-start'
-          else if (i===L-1) klass='promo-run-end'
-          promoSegByDate[dISO] = { class: klass, label: i===midIdx ? label : '' }
+      const promoSegByDate = {}
+      {
+        for (const p of promotions){
+          const ps = p.start_date.slice(0,10)
+          const pe = p.end_date.slice(0,10)
+          const start = parseLocal(ps) < parseLocal(monthStartISO) ? parseLocal(monthStartISO) : parseLocal(ps)
+          const end   = parseLocal(pe) > parseLocal(monthEndISO)   ? parseLocal(monthEndISO)   : parseLocal(pe)
+          if (end < start) continue
+          const days=[]
+          for (let d=new Date(start); d<=end; d=addDays(d,1)) days.push(toLocalISO(d))
+          const L = days.length, midIdx = Math.floor((L-1)/2)
+          const label = p.kind==='percent' ? `${p.tier1_value ?? ''}% off` : `$${p.tier1_value ?? ''} off`
+          for (let i=0;i<L;i++){
+            const dISO = days[i]
+            if (promoSegByDate[dISO]) continue
+            let klass = 'promo-run-mid'
+            if (L===1) klass='promo-run-solo'
+            else if (i===0) klass='promo-run-start'
+            else if (i===L-1) klass='promo-run-end'
+            promoSegByDate[dISO] = { class: klass, label: i===midIdx ? label : '' }
+          }
         }
       }
 
@@ -601,50 +635,69 @@
         const dateEl = document.createElement('div'); dateEl.className='date'; dateEl.textContent = day
         cell.appendChild(dateEl)
 
+        /* ---------- lender summary counts per day ---------- */
         const chips = document.createElement('div'); chips.className='chips'
+        if (filters.lend){
+          const lendStart = myLending.filter(r => r.start_date_iso===dISO)
+          const lendEnd   = myLending.filter(r => r.end_date_iso===dISO)
 
-        // edges rendering
-        const set = edgesByDate[dISO] || []
-        let shown = 0
-        for (const e of set){
-          const isRent = e.css==='rent', isLend = e.css==='lend'
-          if (isRent && !filters.rent) continue
-          if (isLend && !filters.lend) continue
-          if (shown >= 3) break
-          const chip = document.createElement('div')
-          chip.className = 'chip ' + (isRent ? (e.edge==='start' ? 'chip-rent-start' : 'chip-rent-end')
-                                             : (e.edge==='start' ? 'chip-lend-start' : 'chip-lend-end'))
-          chip.textContent = e.title + (e.edge==='start'
-            ? ` (pickup${e.res.start_time ? ' at '+timeHuman(e.res.start_time):''})`
-            : ` (return${e.res.end_time ? ' at '+timeHuman(e.res.end_time):''})`)
-          chips.appendChild(chip); shown++
-        }
+          const toDeliver = lendStart.filter(r => !!r.requires_delivery).length
+          const toHandoff = lendStart.length - toDeliver
 
-        // blackouts
-        for (const b of (blkByDate[dISO]||[])) {
-          if (b.kind==='store_blocked' && !filters.store) continue
-          if (b.kind==='owner_unavailable' && !filters.owner) continue
-          if (shown < 3) {
-            const css = (b.kind==='store_blocked') ? 'chip-store' : 'chip-block'
-            const label = (b.kind==='store_blocked') ? 'Store blocked' : 'Owner unavailable'
-            const c = document.createElement('div'); c.className='chip ' + css; c.textContent = label
-            chips.appendChild(c); shown++
+          const rtnPickup = lendEnd.filter(r => !!r.requires_delivery).length   // we must pick up from renter
+          const rtnAtShop = lendEnd.length - rtnPickup                          // they return to us
+
+          const addSum = (n, css, text) => {
+            if (!n) return
+            const chip = document.createElement('div')
+            chip.className = `chip chip-sum ${css}`
+            chip.textContent = n === 1 ? `1 ${text}` : `${n} ${text}s`
+            chips.appendChild(chip)
           }
+          addSum(toDeliver, 'l-deliver', 'to deliver')
+          addSum(toHandoff, 'l-handoff', 'handoff')
+          addSum(rtnPickup, 'l-rtn-pu', 'return pickup')
+          addSum(rtnAtShop, 'l-rtn-due', 'return due')
         }
 
-        // promo lane at bottom
+        /* ---------- renter edge summaries (compact) ---------- */
+        if (filters.rent){
+          const rentStart = myRentals.filter(r => r.start_date_iso===dISO).length
+          const rentEnd   = myRentals.filter(r => r.end_date_iso===dISO).length
+          const mk = (n, klass, word) => {
+            if (!n) return
+            const c = document.createElement('div'); c.className = `chip ${klass}`
+            c.textContent = n === 1 ? `Your ${word}` : `Your ${word}s (${n})`
+            chips.appendChild(c)
+          }
+          mk(rentStart, 'chip-rent-start', 'pickup')
+          mk(rentEnd,   'chip-rent-end',   'return')
+        }
+
+        /* ---------- blackout bars (connected runs with centered label) ---------- */
+        const os = ownerSeg[dISO], ss = storeSeg[dISO]
+        if (filters.owner && os){
+          const lane = document.createElement('div'); lane.className='blk-lane'
+          const strip = document.createElement('div'); strip.className=`blk-strip blk-owner ${os.class}`
+          if (os.labelIndex){ strip.innerHTML = `<div class="bar-label">Owner unavailable</div>` }
+          lane.appendChild(strip); cell.appendChild(lane)
+        }
+        if (filters.store && ss){
+          const lane = document.createElement('div'); lane.className='blk-lane'
+          lane.style.top = '40px' // second lane below owner-unavailable
+          const strip = document.createElement('div'); strip.className=`blk-strip blk-store ${ss.class}`
+          if (ss.labelIndex){ strip.innerHTML = `<div class="bar-label">Store blocked</div>` }
+          lane.appendChild(strip); cell.appendChild(lane)
+        }
+
+        /* ---------- promo lane ---------- */
         const seg = promoSegByDate[dISO]
         if (seg){
           const lane = document.createElement('div'); lane.className='promo-lane'
           const strip = document.createElement('div'); strip.className='promo-strip ' + seg.class
-          if (seg.label) {
-            const lbl = document.createElement('div'); lbl.className='promo-label'; lbl.textContent = seg.label
-            strip.appendChild(lbl)
-          }
+          if (seg.label) strip.innerHTML = `<div class="promo-label">${seg.label}</div>`
           lane.appendChild(strip); cell.appendChild(lane)
         }
-
-        // "more" is intentionally not shown for edges-only mode to keep the grid calm
 
         cell.appendChild(chips)
         gridDays.appendChild(cell)
@@ -738,25 +791,22 @@
           for (const r of myLending) {
             if (sameDay(r.start_date_iso, dISO)) {
               const t = timeHuman(r.start_time)
-              add(`Lender obligation • ${r.listings?.title || `Listing #${r.listing_id}`} (handoff${t?` at ${t}`:''}) • ${fmtHuman(dISO)}`)
+              add(`Lender obligation • ${r.listings?.title || `Listing #${r.listing_id}`} (${r.requires_delivery ? 'deliver' : 'handoff'}${t?` at ${t}`:''}) • ${fmtHuman(dISO)}`)
             }
             if (sameDay(r.end_date_iso, dISO)) {
               const t = timeHuman(r.end_time)
-              add(`Lender obligation • ${r.listings?.title || `Listing #${r.listing_id}`} (return${t?` at ${t}`:''}) • ${fmtHuman(dISO)}`)
+              add(`Lender obligation • ${r.listings?.title || `Listing #${r.listing_id}`} (${r.requires_delivery ? 'pick up return' : 'receive return'}${t?` at ${t}`:''}) • ${fmtHuman(dISO)}`)
             }
           }
         }
 
-        const blks = blackouts.filter(b => b.date === dISO)
-        for (const b of blks){
-          if (b.kind==='owner_unavailable' && filters.owner) add(`Owner unavailable • ${fmtHuman(dISO)}`)
-          if (b.kind==='store_blocked'   && filters.store)  add(`Store blocked • ${fmtHuman(dISO)}`)
-        }
+        const ownerOn = blackouts.some(b => b.date===dISO && b.kind==='owner_unavailable')
+        const storeOn = blackouts.some(b => b.date===dISO && b.kind==='store_blocked')
+        if (ownerOn && filters.owner) add(`Owner unavailable • ${fmtHuman(dISO)}`)
+        if (storeOn && filters.store)  add(`Store blocked • ${fmtHuman(dISO)}`)
 
         for (const p of promotions) {
-          const dd = parseLocal(dISO)
-          const ps = parseLocal(p.start_date)
-          const pe = parseLocal(p.end_date)
+          const dd = parseLocal(dISO), ps = parseLocal(p.start_date), pe = parseLocal(p.end_date)
           if (dd >= ps && dd <= pe) {
             const label = p.kind==='percent' ? `${p.tier1_value ?? ''}% off` : `$${p.tier1_value ?? ''} off`
             add(`Promotion active • ${label} • ${fmtHuman(dISO)}`)
@@ -781,7 +831,7 @@
       const t = new Date(); view = new Date(t.getFullYear(), t.getMonth(), 1); refresh()
     })
 
-    // keyboard: left/right arrows navigate months; Home jumps to today
+    // keyboard
     document.addEventListener('keydown', (e)=>{
       if (e.key === 'ArrowLeft'){ view.setMonth(view.getMonth()-1); refresh() }
       else if (e.key === 'ArrowRight'){ view.setMonth(view.getMonth()+1); refresh() }
@@ -951,18 +1001,18 @@
         alert('Promotional pricing saved.')
         await loadMonthData(); render()
       } catch (e) {
-        console.warn('Promo save failed (OK to ignore if listing_promotions is not set up):', e)
+        console.warn('Promo save failed (OK to ignore if table not present):', e)
         alert('Could not save promo. Ensure the listing_promotions table schema/policies are in place.')
       }
     })
 
-    // Trim/remove promotions only within selected ranges (split/shorten instead of nuking whole span)
+    // Trim/remove promotions in selected ranges (split/shorten)
     async function trimPromotionsInRanges(){
       if (!selection.size) return alert('Select one or more dates to trim/remove promotions.')
       if (!guardSelectionWithinWindow()) return
-      const ids = ownedIds()
+      const ids = (myListings||[]).map(l => l.id)
       if (!ids.length) return alert('No listings available.')
-      const ranges = selectionRanges()
+      const ranges = (()=>{ const arr=[...selection].sort(); if(!arr.length) return []; const out=[]; let s=arr[0], p=arr[0]; for(let i=1;i<arr.length;i++){ const c=arr[i]; const diff=(parseLocal(c)-parseLocal(p))/(1000*60*60*24); if(diff===1){ p=c; continue } out.push([s,p]); s=c; p=c } out.push([s,p]); return out })()
       try {
         for (const [ss,se] of ranges){
           const { data: promos } = await supabase
@@ -974,12 +1024,7 @@
 
           for (const p of (promos||[])){
             const ps = p.start_date.slice(0,10), pe = p.end_date.slice(0,10)
-            // fully covered
-            if (ss <= ps && se >= pe){
-              await supabase.from('listing_promotions').delete().eq('id', p.id)
-              continue
-            }
-            // selection inside → split into two
+            if (ss <= ps && se >= pe){ await supabase.from('listing_promotions').delete().eq('id', p.id); continue }
             if (ss > ps && se < pe){
               await supabase.from('listing_promotions').update({ end_date: addDaysISO(ss, -1) }).eq('id', p.id)
               const rightStart = addDaysISO(se, 1)
@@ -991,18 +1036,8 @@
               })
               continue
             }
-            // left overlap → move start right
-            if (ss <= ps && se < pe && se >= ps){
-              const newStart = addDaysISO(se, 1)
-              await supabase.from('listing_promotions').update({ start_date: newStart }).eq('id', p.id)
-              continue
-            }
-            // right overlap → move end left
-            if (ss > ps && ss <= pe && se >= pe){
-              const newEnd = addDaysISO(ss, -1)
-              await supabase.from('listing_promotions').update({ end_date: newEnd }).eq('id', p.id)
-              continue
-            }
+            if (ss <= ps && se < pe && se >= ps){ const newStart = addDaysISO(se, 1); await supabase.from('listing_promotions').update({ start_date: newStart }).eq('id', p.id); continue }
+            if (ss > ps && ss <= pe && se >= pe){ const newEnd = addDaysISO(ss, -1); await supabase.from('listing_promotions').update({ end_date: newEnd }).eq('id', p.id); continue }
           }
         }
         selection.clear()
@@ -1016,8 +1051,7 @@
 
     async function refresh(){ await loadMonthData(); render() }
 
-    // allow ?focus=YYYY-MM-DD
-    const params = new URLSearchParams(location.search)
+    // allow ?focus=YYYY-MM-DD and ?listing=<id>
     const focus = params.get('focus')
     if (focus && /^\d{4}-\d{2}-\d{2}$/.test(focus)) {
       const f = parseLocal(focus)
