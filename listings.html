@@ -3,20 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>BARO • Rentals</title>
+  <title>BARO • Listings</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* page-intro so we don't clash with the header's .hero */
     .page-intro { text-align:center; padding: 2rem 1rem; }
     .page-intro h2 { margin: 0 0 .25rem 0; }
     .page-intro p  { margin: 0; opacity: .85; }
-
-    /* tiny helper so empty/error messages don’t look sad */
     .note { text-align:center; padding:0.75rem; }
+    .card img { width:100%; height:180px; object-fit:cover; border-radius:10px; margin-bottom:.5rem; }
+    .muted { opacity:.8; font-size:.95rem; }
   </style>
 </head>
 <body>
-  <!-- Shared site header (loads header.html fragment) -->
+  <!-- Shared site header -->
   <div id="header"></div>
   <script>
     (async () => {
@@ -28,21 +27,19 @@
         console.error('Failed to load header.html', e);
       }
       const boot = () => { if (window.initHero) window.initHero(); };
-      if (document.readyState === 'complete') boot();
-      else window.addEventListener('load', boot);
+      if (document.readyState === 'complete') boot(); else window.addEventListener('load', boot);
     })();
   </script>
 
   <main>
-    <!-- renamed from class="hero" to avoid black background from the header styles -->
     <section class="page-intro">
-      <h2>All Rentals</h2>
+      <h2>All Listings</h2>
       <p>Select a listing to see details and availability.</p>
     </section>
 
     <section class="categories">
       <h3 style="text-align:center;">Browse Everything</h3>
-      <div class="grid" id="rentals-grid"></div>
+      <div class="grid" id="listings-grid"></div>
     </section>
   </main>
 
@@ -56,40 +53,100 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cGxwaHFma2R2anRwaGFmY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDAxOTQsImV4cCI6MjA3NTQxNjE5NH0.cRm0HrVuhEgALHiyOtlMQWMvDcFXFaBZvBOysshpzjU'
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-    const grid = document.getElementById('rentals-grid')
+    const grid = document.getElementById('listings-grid')
 
-    const { data, error } = await supabase
+    // 1) Get only published listings
+    const { data: listings, error: lerr } = await supabase
       .from('listings')
-      .select('*')
-      .eq('paused', false)
+      .select('id, title, category, location_text, daily_price, published_at')
+      .eq('published', true)
+      .order('published_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
 
-    if (error) {
+    if (lerr) {
       const p = document.createElement('p')
       p.className = 'note'
       p.textContent = 'Error loading listings.'
       grid.parentElement.appendChild(p)
-    } else if (!data?.length) {
+      throw lerr
+    }
+    if (!listings?.length) {
       const p = document.createElement('p')
       p.className = 'note'
       p.textContent = 'No listings yet.'
       grid.parentElement.appendChild(p)
     } else {
-      for (const item of data) {
-        const a = document.createElement('a');
-        a.className = 'card';
-        a.href = `listing.html?id=${encodeURIComponent(item.id)}`;
+      // 2) Try to fetch cover photos from the view; fall back to first photo if view missing
+      const ids = listings.map(l => l.id)
+      const coverByListing = {}
+
+      // Try the view first
+      let hadCoverView = true
+      {
+        const { data: covers, error: cerr } = await supabase
+          .from('listing_cover_photo')
+          .select('listing_id, path')
+          .in('listing_id', ids)
+
+        if (cerr) {
+          hadCoverView = false
+        } else {
+          for (const c of covers || []) coverByListing[c.listing_id] = c.path
+        }
+      }
+
+      // Fallback: pull first/primary photo per listing
+      if (!hadCoverView) {
+        const { data: photos } = await supabase
+          .from('listing_photos')
+          .select('listing_id, path, is_primary, created_at')
+          .in('listing_id', ids)
+          .order('is_primary', { ascending: false })
+          .order('created_at', { ascending: true })
+
+        if (photos?.length) {
+          const firstBy = {}
+          for (const p of photos) {
+            if (!firstBy[p.listing_id]) firstBy[p.listing_id] = p
+          }
+          for (const [lid, p] of Object.entries(firstBy)) coverByListing[lid] = p.path
+        }
+      }
+
+      // Render cards
+      for (const item of listings) {
+        const a = document.createElement('a')
+        a.className = 'card'
+        a.href = `/listing.html?id=${encodeURIComponent(item.id)}`
+
+        // resolve public image url if we have a path
+        let imgHtml = ''
+        const path = coverByListing[item.id]
+        if (path) {
+          const { data: pub } = supabase.storage.from('listing-photos').getPublicUrl(path)
+          if (pub?.publicUrl) {
+            imgHtml = `<img src="${pub.publicUrl}" alt="">`
+          }
+        }
+
+        const price = (item.daily_price != null && !isNaN(item.daily_price))
+          ? `$${Number(item.daily_price).toFixed(2)}/day`
+          : '—'
+
+        const loc = item.location_text ? `<span class="muted">${item.location_text}</span>` : ''
+        const cat = item.category ? `<span class="muted">${item.category}</span>` : ''
+
         a.innerHTML = `
-          <h4>${item.title}</h4>
-          <p class="muted">${item.category}</p>
-          <p>$${(item.base_price_cents / 100).toFixed(2)}/day</p>
-        `;
-        grid.appendChild(a);
+          ${imgHtml}
+          <h4>${item.title || 'Untitled listing'}</h4>
+          <p>${price}</p>
+          <p>${loc}${loc && cat ? ' · ' : ''}${cat}</p>
+        `
+        grid.appendChild(a)
       }
     }
   </script>
 
-  <!-- Global script (defines initHero) -->
   <script src="script.js" defer></script>
 </body>
 </html>
