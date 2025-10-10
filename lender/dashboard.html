@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>BARO • Lender Dashboard</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="../style.css" />
   <style>
     main { padding:2rem 1rem; max-width:1100px; margin:0 auto; }
     .panel { background:#fff; padding:1rem; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.08); margin-bottom:1rem; }
@@ -38,7 +38,7 @@
     (async () => {
       const mount = document.getElementById('header');
       try {
-        const res = await fetch('header.html', { cache: 'no-store' });
+        const res = await fetch('../header.html', { cache: 'no-store' });
         mount.innerHTML = await res.text();
       } catch(e){ console.error('header load failed', e); }
       const boot = () => { if (window.initHero) window.initHero(); };
@@ -52,8 +52,8 @@
     <!-- Signed-out notice -->
     <div id="signed-out" class="panel" style="display:none;">
       <p class="muted">Please log in to view and manage your reservations.</p>
-      <a href="admin.html"><button class="btn">Log in</button></a>
-      <a href="admin.html"><button class="btn secondary">Create account</button></a>
+      <a href="../admin.html"><button class="btn">Log in</button></a>
+      <a href="../admin.html"><button class="btn secondary">Create account</button></a>
     </div>
 
     <!-- Dashboard -->
@@ -317,6 +317,6 @@
   </script>
 
   <!-- Global script (topbar + hero init) -->
-  <script src="script.js" defer></script>
+  <script src="../script.js" defer></script>
 </body>
 </html>

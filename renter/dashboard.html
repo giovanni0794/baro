@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>BARO • Renter Dashboard</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="../style.css" />
   <style>
     main { padding:2rem 1rem; max-width:1100px; margin:0 auto; }
     .panel { background:#fff; padding:1rem; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.08); margin-bottom:1rem; }
@@ -32,7 +32,7 @@
   <script>
     (async () => {
       const m = document.getElementById('header');
-      const res = await fetch('header.html', { cache:'no-store' });
+      const res = await fetch('../header.html', { cache:'no-store' });
       m.innerHTML = await res.text();
       const boot = () => window.initHero && window.initHero();
       if (document.readyState === 'complete') boot(); else addEventListener('load', boot);
@@ -44,7 +44,7 @@
 
     <div class="panel" id="guard">
       <p class="muted">You need to be logged in to view your reservations.</p>
-      <a class="btn" href="admin.html">Log in</a>
+      <a class="btn" href="../admin.html">Log in</a>
     </div>
 
     <div class="panel hidden" id="dash">
@@ -53,7 +53,7 @@
         <span class="pill" data-filter="pending">Pending</span>
         <span class="pill" data-filter="past">Past</span>
         <span class="pill" data-filter="cancelled">Cancelled</span>
-        <a class="btn secondary" href="calendar.html" style="margin-left:auto;">Open calendar</a>
+        <a class="btn secondary" href="/calendar.html" style="margin-left:auto;">Open calendar</a>
       </div>
 
       <table class="table">
@@ -130,8 +130,8 @@
           <td>${fmtMoney(r.amount_cents)}</td>
           <td><span class="badge ${badge}">${r.status}</span></td>
           <td class="actions">
-            <a class="btn secondary" href="listing.html?id=${encodeURIComponent(r.listing_id)}">View listing</a>
-            <a class="btn" href="calendar.html?focus=${r.start_date}">Show in calendar</a>
+            <a class="btn secondary" href="/listing.html?id=${encodeURIComponent(r.listing_id)}">View listing</a>
+            <a class="btn" href="/calendar.html?focus=${r.start_date}">Show in calendar</a>
           </td>`
         tbody.appendChild(tr)
       }
@@ -143,6 +143,6 @@
     supabase.auth.onAuthStateChange(()=>load())
   </script>
 
-  <script src="script.js" defer></script>
+  <script src="../script.js" defer></script>
 </body>
 </html>
