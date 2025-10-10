@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BARO • Listing</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    main { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
+    .titlebar { display:flex; align-items:flex-end; gap:.75rem; flex-wrap:wrap; }
+    .badge { display:inline-block; padding:.15rem .5rem; border-radius:999px; font-weight:700; border:1px solid transparent; font-size:.9rem }
+    .badge.draft { background:#fff7e6; color:#b36b00; border-color:#ffd188 }
+    .muted { opacity:.8 }
+    .price { font-size:1.35rem; font-weight:800 }
+    .grid { display:grid; grid-template-columns: 1.2fr .8fr; gap:1rem }
+    .gallery { border-radius:12px; overflow:hidden; background:#f7f7f7; }
+    .heroimg { width:100%; height:380px; object-fit:cover; display:block }
+    .thumbs { display:grid; grid-template-columns:repeat(auto-fill, minmax(110px,1fr)); gap:.5rem; margin-top:.5rem }
+    .thumb { border-radius:10px; overflow:hidden; border:1px solid #ddd; cursor:pointer }
+    .thumb img { width:100%; height:80px; object-fit:cover; display:block }
+    .panel { background:#fff; border:1px solid #eee; border-radius:12px; padding:1rem }
+    .row { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center }
+    .btn { background:var(--accent, #000); color:#fff; border:none; border-radius:8px; padding:.6rem .9rem; cursor:pointer; text-decoration:none; }
+    .btn.secondary { background:#444 }
+    .kv { display:grid; grid-template-columns: auto 1fr; gap:.25rem .75rem; align-items:start; }
+    .kv dt { opacity:.8 }
+    .kv dd { margin:0 }
+    @media (max-width: 900px){ .grid { grid-template-columns: 1fr; } .heroimg{ height:260px } }
+  </style>
+</head>
+<body>
+  <!-- Shared header -->
+  <div id="header"></div>
+  <script>
+    (async () => {
+      const mount = document.getElementById('header');
+      try {
+        const r = await fetch('header.html', { cache: 'no-store' });
+        mount.innerHTML = await r.text();
+      } catch {
+        mount.innerHTML = '<div class="panel" style="margin:1rem">Header failed to load.</div>';
+      }
+      const boot = () => { if (window.initHero) window.initHero(); };
+      if (document.readyState === 'complete') boot(); else addEventListener('load', boot);
+    })();
+  </script>
+
+  <main>
+    <div id="notfound" class="panel" style="display:none; text-align:center;">
+      <h2>Listing not found</h2>
+      <p class="muted">The listing may have been removed or isn’t published yet.</p>
+      <p><a class="btn secondary" href="/listings.html">Back to listings</a></p>
+    </div>
+
+    <div id="content" style="display:none">
+      <div class="titlebar">
+        <h1 id="title" style="margin:.2rem 0 .4rem 0;">Listing</h1>
+        <span id="statusBadge" class="badge draft" style="display:none">Draft / Unlisted</span>
+      </div>
+      <div class="muted" id="meta"></div>
+
+      <div class="grid" style="margin-top:1rem">
+        <!-- Gallery -->
+        <section>
+          <div class="gallery">
+            <img id="heroimg" class="heroimg" alt="">
+          </div>
+          <div id="thumbs" class="thumbs"></div>
+        </section>
+
+        <!-- Facts + actions -->
+        <aside class="panel">
+          <div class="price" id="price">$0.00/day</div>
+          <div class="muted" id="deposit" style="margin:.25rem 0 .75rem 0;"></div>
+
+          <div class="row" style="margin:.25rem 0 1rem 0;">
+            <a id="ctaAvail" class="btn">Check availability</a>
+            <a id="ctaEdit" class="btn secondary" style="display:none">Edit listing</a>
+          </div>
+
+          <dl class="kv">
+            <dt>Location</dt><dd id="location">—</dd>
+            <dt>Category</dt><dd id="category">—</dd>
+            <dt>Guests</dt><dd id="guests">—</dd>
+            <dt>Min/Max days</dt><dd id="days">—</dd>
+            <dt>Published</dt><dd id="publishedAt">—</dd>
+          </dl>
+        </aside>
+      </div>
+
+      <section class="panel" style="margin-top:1rem">
+        <h3 style="margin-top:0">Summary</h3>
+        <div id="summary">—</div>
+      </section>
+    </div>
+  </main>
+
+  <footer style="text-align:center; padding:1rem">
+    <p>Servicing Location: Anchorage, AK</p>
+    <p>© 2025 Baro</p>
+  </footer>
+
+  <!-- Page logic -->
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+    const sb = createClient(
+      'https://lxplphqfkdvjtphafcyt.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cGxwaHFma2R2anRwaGFmY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDAxOTQsImV4cCI6MjA3NTQxNjE5NH0.cRm0HrVuhEgALHiyOtlMQWMvDcFXFaBZvBOysshpzjU'
+    )
+
+    const $ = s => document.querySelector(s)
+    const params = new URLSearchParams(location.search)
+    const idParam = params.get('id')
+    const listingId = idParam ? Number(idParam) : NaN
+
+    const notfound = $('#notfound')
+    const content = $('#content')
+
+    if (!idParam || Number.isNaN(listingId)) {
+      notfound.style.display = 'block'
+    } else {
+      load().catch(e => {
+        console.error(e)
+        notfound.style.display = 'block'
+      })
+    }
+
+    async function load() {
+      // Get viewer identity to decide whether to show owner-only tools if unpublished
+      let myUserId = null
+      try {
+        const { data: { session } } = await sb.auth.getSession()
+        myUserId = session?.user?.id || null
+      } catch {}
+
+      // Fetch listing core
+      const { data: listing, error } = await sb
+        .from('listings')
+        .select('id,title,category,location_text,daily_price,security_deposit,max_guests,min_days,max_days,summary,cover_photo_id,published,published_at,owner_id,created_at')
+        .eq('id', listingId)
+        .single()
+
+      if (error || !listing) {
+        notfound.style.display = 'block'
+        return
+      }
+
+      const isOwner = myUserId && listing.owner_id === myUserId
+      if (!listing.published && !isOwner) {
+        // not public, non-owner viewer
+        notfound.style.display = 'block'
+        return
+      }
+
+      // Photos: try cover view first; fall back to listing_photos
+      let heroPath = null
+      const coverByListing = {}
+      let coverOk = true
+      {
+        const { data: covers, error: cerr } = await sb
+          .from('listing_cover_photo')
+          .select('listing_id, path')
+          .eq('listing_id', listing.id)
+        if (cerr) coverOk = false
+        else for (const c of covers || []) coverByListing[c.listing_id] = c.path
+      }
+
+      const { data: photos } = await sb
+        .from('listing_photos')
+        .select('id, path, is_primary, sort_order, created_at')
+        .eq('listing_id', listing.id)
+        .order('is_primary', { ascending:false })
+        .order('sort_order', { ascending:true })
+        .order('created_at', { ascending:true })
+
+      const paths = []
+      if (coverOk && coverByListing[listing.id]) {
+        heroPath = coverByListing[listing.id]
+      }
+      if (photos?.length) {
+        const ordered = photos.slice().sort((a,b)=>{
+          const ai = a.is_primary ? 0 : 1
+          const bi = b.is_primary ? 0 : 1
+          const ao = a.sort_order ?? 9999
+          const bo = b.sort_order ?? 9999
+          return ai - bi || ao - bo || (new Date(a.created_at) - new Date(b.created_at))
+        })
+        for (const p of ordered) paths.push(p.path)
+        if (!heroPath && ordered.length) heroPath = ordered[0].path
+      }
+
+      // Build image URLs
+      const pub = p => sb.storage.from('listing-photos').getPublicUrl(p).data?.publicUrl || null
+      const heroUrl = heroPath ? pub(heroPath) : null
+      const thumbUrls = paths.map(pub).filter(Boolean)
+
+      // Fill UI
+      $('#title').textContent = listing.title || 'Untitled listing'
+      $('#meta').textContent = [listing.location_text, listing.category].filter(Boolean).join(' · ') || ''
+      $('#price').textContent = (listing.daily_price != null) ? `$${Number(listing.daily_price).toFixed(2)}/day` : '—'
+      $('#deposit').textContent = (listing.security_deposit != null && Number(listing.security_deposit) > 0)
+        ? `Security deposit: $${Number(listing.security_deposit).toFixed(2)}`
+        : ''
+      $('#location').textContent = listing.location_text || '—'
+      $('#category').textContent = listing.category || '—'
+      $('#guests').textContent   = listing.max_guests ? String(listing.max_guests) : '—'
+      $('#days').textContent     = [listing.min_days || 1, listing.max_days || '—'].join(' / ')
+      $('#publishedAt').textContent = listing.published_at ? new Date(listing.published_at).toLocaleDateString() : '—'
+      $('#summary').textContent  = listing.summary || 'No description yet.'
+
+      const hero = $('#heroimg')
+      if (heroUrl) hero.src = heroUrl
+      else { hero.remove(); document.querySelector('.gallery').innerHTML = '<div class="panel">No photos yet.</div>' }
+
+      const thumbs = $('#thumbs')
+      thumbs.innerHTML = ''
+      thumbUrls.forEach(url => {
+        const d = document.createElement('div'); d.className = 'thumb'
+        d.innerHTML = `<img src="${url}" alt="">`
+        d.addEventListener('click', () => { const img = $('#heroimg'); if (img) img.src = url })
+        thumbs.appendChild(d)
+      })
+
+      // Actions
+      const avail = $('#ctaAvail')
+      avail.href = `/calendar.html?listing=${encodeURIComponent(listing.id)}`
+      const edit = $('#ctaEdit')
+      if (isOwner) {
+        if (!listing.published) {
+          const badge = $('#statusBadge')
+          badge.style.display = 'inline-block'
+        }
+        edit.style.display = 'inline-block'
+        edit.href = `/lender/new-listing.html?id=${encodeURIComponent(listing.id)}`
+      }
+
+      content.style.display = 'block'
+    }
+  </script>
+
+  <!-- Global script -->
+  <script src="script.js" defer></script>
+</body>
+</html>
