@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BARO • New Listing</title>
+  <link rel="stylesheet" href="../style.css" />
+  <style>
+    /* Layout only, no theme overrides */
+    .wrap { max-width: 1080px; margin: 24px auto; padding: 0 16px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .uploader { border:1.5px dashed currentColor; border-radius:12px; padding:16px; text-align:center; opacity:.9 }
+    .uploader.drag { outline:2px solid currentColor; }
+    .thumbs { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:10px; margin-top:12px; }
+    .thumb { border:1px solid currentColor; border-radius:10px; overflow:hidden; display:flex; flex-direction:column; opacity:.95 }
+    .thumb img { width:100%; height:120px; object-fit:cover; }
+    .thumb .meta { display:flex; gap:6px; padding:8px; align-items:center; justify-content:space-between; }
+    .btn { cursor:pointer }
+    .status { margin-top:10px; font-size:0.95rem; }
+    .header-placeholder { border:1px dashed currentColor; padding:8px 12px; border-radius:8px; margin:12px 0; }
+    @media (max-width: 880px){ .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div id="header-include"></div>
+
+  <div class="wrap">
+    <h1>New Listing</h1>
+
+    <div class="row" style="justify-content:space-between">
+      <div class="row">
+        <button id="newListing" class="btn">New draft</button>
+        <span class="muted">To tweak an existing one, use <code>?id=123</code> in the URL</span>
+      </div>
+      <div class="row">
+        <span class="muted">Status:</span>
+        <span id="pubBadge" class="chip">Draft</span>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <form id="listingForm" novalidate>
+      <input type="hidden" id="listingId" />
+
+      <div class="grid">
+        <div>
+          <label for="title">Title *</label>
+          <input id="title" type="text" placeholder="e.g., 2019 Grand Design 42' Fifth Wheel" />
+          <div class="help">Required to publish</div>
+        </div>
+        <div>
+          <label for="category">Category</label>
+          <input id="category" list="categoryList" type="text" placeholder="RV, Vehicle, Tech, Tools, Property..." />
+          <datalist id="categoryList">
+            <option>RV</option><option>Vehicle</option><option>Tech</option>
+            <option>Tools</option><option>Property</option>
+          </datalist>
+        </div>
+
+        <div>
+          <label for="location_text">Location *</label>
+          <input id="location_text" type="text" placeholder="Anchorage, AK" />
+          <div class="help">Required to publish</div>
+        </div>
+        <div>
+          <label for="daily_price">Daily price (USD) *</label>
+          <input id="daily_price" type="number" step="0.01" min="0" placeholder="0.00" />
+          <div class="help">Required to publish</div>
+        </div>
+
+        <div>
+          <label for="security_deposit">Security deposit (USD)</label>
+          <input id="security_deposit" type="number" step="0.01" min="0" placeholder="Optional" />
+        </div>
+        <div>
+          <label for="max_guests">Max guests</label>
+          <input id="max_guests" type="number" step="1" min="1" placeholder="Optional" />
+        </div>
+        <div>
+          <label for="min_days">Min days</label>
+          <input id="min_days" type="number" step="1" min="1" value="1" />
+        </div>
+        <div>
+          <label for="max_days">Max days</label>
+          <input id="max_days" type="number" step="1" min="1" placeholder="Optional" />
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div>
+        <label for="summary">Summary *</label>
+        <textarea id="summary" placeholder="Key details, what it includes, rules, etc." rows="6"></textarea>
+        <div class="help">Client-side required when publishing. DB trigger also enforces at least one photo.</div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="row">
+        <label class="row" style="gap:8px;margin:0">
+          <input id="published" type="checkbox" />
+          <span>Publish this listing</span>
+        </label>
+        <div class="row" style="gap:12px">
+          <span class="muted">Cover preview:</span>
+          <img id="coverPreview" alt="" style="width:96px;height:64px;object-fit:cover;border-radius:8px" />
+          <span id="coverHint" class="muted">Set a primary photo below to control this.</span>
+        </div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div>
+        <label>Photos</label>
+        <div id="uploader" class="uploader">
+          <p>Drag & drop images here or <label for="fileInput" class="btn" style="display:inline-block;cursor:pointer">browse…</label></p>
+          <input id="fileInput" type="file" accept="image/*" multiple style="display:none" />
+          <div class="help">First upload auto-creates a draft if needed. Publicly viewable; writes are owner-scoped.</div>
+        </div>
+        <div id="thumbs" class="thumbs" aria-live="polite"></div>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="row" style="justify-content:space-between">
+        <div class="row" style="gap:10px">
+          <button id="saveDraft" class="btn" type="button">Save draft</button>
+          <button id="savePublish" class="btn ok" type="button">Save & publish</button>
+          <button id="unpublish" class="btn warn" type="button" style="display:none">Pause (Unlist)</button>
+        </div>
+        <button id="deleteListing" class="btn danger" type="button">Delete listing</button>
+      </div>
+
+      <div id="status" class="status"></div>
+    </form>
+  </div>
+
+  <script>
+    // Header include with no-store cache and visible fallback
+    (async () => {
+      try {
+        const r = await fetch('../header.html', { cache: 'no-store' });
+        if (!r.ok) throw new Error('header fetch failed');
+        document.getElementById('header-include').innerHTML = await r.text();
+      } catch (e) {
+        document.getElementById('header-include').innerHTML =
+          '<div class="header-placeholder">Header failed to load. Continue editing; nav will appear when header is reachable.</div>';
+      }
+    })();
+
+    // Helpers
+    const $ = s => document.querySelector(s);
+    const statusEl = $('#status');
+    const pubBadge = $('#pubBadge');
+
+    function setStatus(msg, kind = 'ok') {
+      statusEl.className = 'status ' + (kind === 'err' ? 'err' : 'ok');
+      statusEl.textContent = msg;
+      if (msg) setTimeout(() => { statusEl.textContent = ''; }, 5000);
+    }
+
+    function requiredErrorsWhenPublishing(values) {
+      const errs = [];
+      if (!values.title?.trim()) errs.push('Title required');
+      if (!values.location_text?.trim()) errs.push('Location required');
+      if (!values.daily_price || Number(values.daily_price) <= 0) errs.push('Daily price > 0 required');
+      if (!values.summary?.trim() || values.summary.trim().length < 10) errs.push('Summary required (10+ chars)');
+      return errs;
+    }
+
+    // Supabase client is created in header include
+    const sb = window.supabase;
+
+    async function requireAuthOrRedirect() {
+      if (!sb) { setStatus('Supabase client missing. Ensure header.html initializes it.', 'err'); throw new Error('no supabase'); }
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) {
+        const next = encodeURIComponent(location.pathname + location.search);
+        location.href = `../admin.html?next=${next}`;
+        throw new Error('redirecting to login');
+      }
+      return user;
+    }
+
+    let listingId = null;
+
+    async function init() {
+      await requireAuthOrRedirect();
+
+      // load by ?id=
+      const params = new URLSearchParams(location.search);
+      const idParam = params.get('id');
+      if (idParam) {
+        listingId = Number(idParam);
+        $('#listingId').value = listingId;
+        await loadListing(listingId);
+        await refreshPhotos();
+      }
+
+      // Buttons
+      $('#newListing').addEventListener('click', async (e) => {
+        e.preventDefault();
+        clearForm(); listingId = null; $('#listingId').value = '';
+        pubBadge.textContent = 'Draft';
+        setStatus('New draft ready.');
+      });
+
+      $('#saveDraft').addEventListener('click', async () => { await save(false); });
+      $('#savePublish').addEventListener('click', async () => { await save(true); });
+
+      $('#unpublish').addEventListener('click', async () => {
+        if (!listingId) return;
+        const { error } = await sb.from('listings').update({ published: false }).eq('id', listingId);
+        if (error) return setStatus(error.message, 'err');
+        $('#published').checked = false;
+        $('#unpublish').style.display = 'none';
+        pubBadge.textContent = 'Draft';
+        setStatus('Paused (Unlisted).');
+      });
+
+      $('#deleteListing').addEventListener('click', async () => {
+        if (!listingId) return setStatus('Nothing to delete.', 'err');
+        if (!confirm('Delete this listing and its photos? This cannot be undone.')) return;
+
+        // Delete photos from storage then rows, then listing
+        const { data: photos } = await sb.from('listing_photos').select('id, path').eq('listing_id', listingId);
+        if (photos?.length) {
+          const keys = photos.map(p => p.path);
+          await sb.storage.from('listing-photos').remove(keys);
+          await sb.from('listing_photos').delete().in('id', photos.map(p => p.id));
+        }
+        const { error } = await sb.from('listings').delete().eq('id', listingId);
+        if (error) return setStatus(error.message, 'err');
+
+        clearForm(); listingId = null; $('#listingId').value = ''; $('#thumbs').innerHTML = ''; coverPreview(null);
+        pubBadge.textContent = 'Draft';
+        setStatus('Listing deleted.');
+      });
+
+      // Uploader
+      const up = $('#uploader');
+      const fileInput = $('#fileInput');
+      up.addEventListener('dragover', e => { e.preventDefault(); up.classList.add('drag'); });
+      up.addEventListener('dragleave', () => up.classList.remove('drag'));
+      up.addEventListener('drop', async e => { e.preventDefault(); up.classList.remove('drag'); await handleFiles(e.dataTransfer.files); });
+      fileInput.addEventListener('change', async e => { await handleFiles(e.target.files); e.target.value = ''; });
+    }
+
+    function formValues() {
+      return {
+        title: $('#title').value,
+        category: $('#category').value || null,
+        location_text: $('#location_text').value,
+        daily_price: $('#daily_price').value ? Number($('#daily_price').value) : null,
+        security_deposit: $('#security_deposit').value ? Number($('#security_deposit').value) : null,
+        max_guests: $('#max_guests').value ? Number($('#max_guests').value) : null,
+        min_days: $('#min_days').value ? Number($('#min_days').value) : 1,
+        max_days: $('#max_days').value ? Number($('#max_days').value) : null,
+        summary: $('#summary').value,
+        published: $('#published').checked
+      };
+    }
+
+    function setForm(v) {
+      $('#title').value = v.title ?? '';
+      $('#category').value = v.category ?? '';
+      $('#location_text').value = v.location_text ?? '';
+      $('#daily_price').value = v.daily_price ?? '';
+      $('#security_deposit').value = v.security_deposit ?? '';
+      $('#max_guests').value = v.max_guests ?? '';
+      $('#min_days').value = v.min_days ?? 1;
+      $('#max_days').value = v.max_days ?? '';
+      $('#summary').value = v.summary ?? '';
+      $('#published').checked = !!v.published;
+      $('#unpublish').style.display = v.published ? 'inline-block' : 'none';
+      pubBadge.textContent = v.published ? 'Published' : 'Draft';
+    }
+
+    function clearForm(){ setForm({}); }
+
+    async function ensureDraft() {
+      if (listingId) return listingId;
+      const { data, error } = await sb.from('listings').insert({ title: null, published: false }).select('id').single();
+      if (error) { setStatus(error.message, 'err'); throw error; }
+      listingId = data.id; $('#listingId').value = listingId;
+      return listingId;
+    }
+
+    async function save(publish) {
+      try {
+        const vals = formValues();
+        if (publish) {
+          const errs = requiredErrorsWhenPublishing(vals);
+          if (errs.length) return setStatus(errs.join(' • '), 'err');
+          vals.published = true;
+        } else {
+          vals.published = false;
+        }
+
+        if (!listingId) {
+          const { data, error } = await sb.from('listings').insert(vals).select('id, published').single();
+          if (error) throw error;
+          listingId = data.id; $('#listingId').value = listingId;
+        } else {
+          const { error } = await sb.from('listings').update(vals).eq('id', listingId);
+          if (error) throw error;
+        }
+
+        if (publish) $('#unpublish').style.display = 'inline-block';
+        pubBadge.textContent = publish ? 'Published' : 'Draft';
+        setStatus(publish ? 'Saved and published.' : 'Draft saved.');
+        await refreshPhotos();
+      } catch (e) {
+        setStatus(e.message || 'Save failed', 'err');
+      }
+    }
+
+    async function loadListing(id) {
+      const { data, error } = await sb.from('listings').select('*').eq('id', id).single();
+      if (error) { setStatus(error.message, 'err'); return; }
+      setForm(data);
+      setStatus('Loaded listing #' + id);
+    }
+
+    function coverPreview(path) {
+      const el = $('#coverPreview');
+      if (!path) { el.removeAttribute('src'); return; }
+      const { data: { publicUrl } } = sb.storage.from('listing-photos').getPublicUrl(path);
+      el.src = publicUrl;
+    }
+
+    async function refreshPhotos() {
+      if (!listingId) { $('#thumbs').innerHTML = ''; coverPreview(null); return; }
+      const { data: photos, error } = await sb.from('listing_photos')
+        .select('id, path, is_primary, sort_order, created_at')
+        .eq('listing_id', listingId)
+        .order('is_primary', { ascending: false })
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+      if (error) return setStatus(error.message, 'err');
+
+      let coverPath = null;
+      if (photos?.length) {
+        const p = photos.find(p => p.is_primary) ?? photos[0];
+        coverPath = p.path;
+      }
+      coverPreview(coverPath);
+
+      const container = $('#thumbs');
+      container.innerHTML = '';
+      for (const p of (photos || [])) {
+        const { data: { publicUrl } } = sb.storage.from('listing-photos').getPublicUrl(p.path);
+        const div = document.createElement('div');
+        div.className = 'thumb';
+        div.innerHTML = `
+          <img src="${publicUrl}" alt="">
+          <div class="meta">
+            <span class="tag ${p.is_primary ? 'primary' : ''}">${p.is_primary ? 'PRIMARY' : 'Photo'}</span>
+            <div class="row" style="gap:6px">
+              <button class="btn" data-act="left" data-id="${p.id}">◀</button>
+              <button class="btn" data-act="right" data-id="${p.id}">▶</button>
+              <button class="btn" data-act="primary" data-id="${p.id}">★</button>
+              <button class="btn" data-act="del" data-id="${p.id}">🗑</button>
+            </div>
+          </div>`;
+        container.appendChild(div);
+      }
+
+      container.querySelectorAll('button[data-act]').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const id = btn.getAttribute('data-id');
+          const act = btn.getAttribute('data-act');
+          if (act === 'primary') {
+            await sb.rpc('set_primary_photo', { p_listing: listingId, p_photo: id });
+            await sb.from('listings').update({ cover_photo_id: id }).eq('id', listingId);
+            await refreshPhotos();
+            setStatus('Primary photo set.');
+          } else if (act === 'del') {
+            const { data, error } = await sb.from('listing_photos').select('path').eq('id', id).single();
+            if (error) return setStatus(error.message, 'err');
+            await sb.storage.from('listing-photos').remove([data.path]).catch(()=>{});
+            await sb.from('listing_photos').delete().eq('id', id);
+            await refreshPhotos();
+            setStatus('Photo deleted.');
+          } else if (act === 'left' || act === 'right') {
+            await movePhoto(id, act === 'left' ? -1 : 1);
+          }
+        });
+      });
+    }
+
+    async function movePhoto(photoId, delta) {
+      const { data: photos, error } = await sb.from('listing_photos')
+        .select('id, sort_order, created_at')
+        .eq('listing_id', listingId)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+      if (error) return setStatus(error.message, 'err');
+
+      const idx = photos.findIndex(p => p.id === photoId);
+      if (idx === -1) return;
+      const j = idx + delta;
+      if (j < 0 || j >= photos.length) return;
+
+      const a = photos[idx], b = photos[j];
+      const updates = [
+        { id: a.id, sort_order: (b.sort_order ?? j) },
+        { id: b.id, sort_order: (a.sort_order ?? idx) }
+      ];
+      const { error: upErr } = await sb.from('listing_photos').upsert(updates).select('id');
+      if (upErr) return setStatus(upErr.message, 'err');
+      await refreshPhotos();
+    }
+
+    async function handleFiles(fileList) {
+      try {
+        const files = Array.from(fileList || []);
+        if (!files.length) return;
+        await ensureDraft();
+        setStatus('Uploading ' + files.length + ' file(s)…');
+
+        const { data: { user } } = await sb.auth.getUser();
+
+        for (const file of files) {
+          const key = `${user.id}/${listingId}/${crypto.randomUUID()}-${file.name}`.replace(/\s+/g,'-');
+          const up = await sb.storage.from('listing-photos').upload(key, file, { upsert: false });
+          if (up.error) throw up.error;
+          const ins = await sb.from('listing_photos').insert({ listing_id: listingId, path: key }).select('id').single();
+          if (ins.error) throw ins.error;
+        }
+
+        await refreshPhotos();
+        setStatus('Upload complete.');
+      } catch (e) {
+        setStatus(e.message || 'Upload failed', 'err');
+      }
+    }
+
+    async function ensureDraft() {
+      if (listingId) return listingId;
+      const { data, error } = await sb.from('listings').insert({ title: null, published: false }).select('id').single();
+      if (error) { setStatus(error.message, 'err'); throw error; }
+      listingId = data.id; $('#listingId').value = listingId;
+      return listingId;
+    }
+
+    async function loadListing(id) {
+      const { data, error } = await sb.from('listings').select('*').eq('id', id).single();
+      if (error) { setStatus(error.message, 'err'); return; }
+      setForm(data);
+      setStatus('Loaded listing #' + id);
+    }
+
+    // Start
+    init().catch(e => {
+      if (String(e.message).includes('redirect')) return;
+      setStatus(e.message || 'Init failed', 'err');
+    });
+  </script>
+</body>
+</html>
