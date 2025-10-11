@@ -227,3 +227,53 @@ window.initHero = function initHero() {
     window.location.assign(buildResultsUrl(normalized.filter, dates));
   });
 };
+
+// =========================================================
+// Global utility: pair two <select> time pickers with an
+// optional 24h checkbox. Selecting 24h on either forces both
+// to 24h; deselecting on either clears 24h on both.
+// Usage: window.wire24Pair(openSel, closeSel, optionalCheckbox)
+// =========================================================
+window.wire24Pair = function wire24Pair(selOpen, selClose, chk){
+  const is24 = v => v === '24h';
+  const defaultOpen  = '09:00';
+  const defaultClose = '17:00';
+
+  function apply24(on){
+    if(on){
+      selOpen.value = '24h';
+      selClose.value = '24h';
+      if(chk){ chk.checked = true; selOpen.disabled = selClose.disabled = true; }
+    } else {
+      if(chk){ chk.checked = false; selOpen.disabled = selClose.disabled = false; }
+      if(is24(selOpen.value))  selOpen.value  = defaultOpen;
+      if(is24(selClose.value)) selClose.value = defaultClose;
+    }
+  }
+
+  selOpen.addEventListener('change', () => {
+    if (is24(selOpen.value)) {
+      apply24(true);
+    } else {
+      if (is24(selClose.value)) selClose.value = defaultClose;
+      apply24(false);
+    }
+  });
+
+  selClose.addEventListener('change', () => {
+    if (is24(selClose.value)) {
+      apply24(true);
+    } else {
+      if (is24(selOpen.value)) selOpen.value = defaultOpen;
+      apply24(false);
+    }
+  });
+
+  if (chk){
+    chk.addEventListener('change', () => apply24(chk.checked));
+    if (chk.checked) apply24(true);
+  } else {
+    // initial sync without a checkbox
+    if (is24(selOpen.value) || is24(selClose.value)) apply24(true);
+  }
+};

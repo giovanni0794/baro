@@ -230,3 +230,58 @@ footer { text-align: center; padding: 1rem; margin-top: 2rem; }
   margin: 0 auto;
   padding: 1.25rem 1rem 2rem;
 }
+
+/* =========================================================
+   Calendar (scoped tweaks so global CSS can help)
+   ========================================================= */
+
+/* Provide fallbacks in case calendar.html didn't define these. */
+:root {
+  --pending-yellow: #ffeaa5;
+  --action-red: #c52a35;
+  --lender-green: #06553f;
+  --renter-blue:  #0a47a6;
+}
+
+/* Pending pills: red border, role-colored text, yellow fill */
+.cal .chip[class*="chip-pend-"] {
+  border: 1px solid var(--action-red) !important;
+  background: var(--pending-yellow) !important;
+}
+.cal .chip-pend-lend-start,
+.cal .chip-pend-lend-end  { color: var(--lender-green) !important; }
+.cal .chip-pend-rent-start,
+.cal .chip-pend-rent-end  { color: var(--renter-blue)  !important; }
+
+/* Cross-cell bands (owner/store/promo) — ensure they float over cell borders
+   and center their labels consistently even when row heights change. */
+.cal { position: relative; }
+.cal .band-layer {
+  position: absolute;
+  left: 0; right: 0;
+  pointer-events: none;
+  z-index: 10;                /* above .day borders */
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.cal .band { position: relative; }
+.cal .band .pill {
+  position: absolute;
+  left: -6px; right: -6px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .70rem; line-height: 1;
+  padding: 0 .4rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Owner/store/promo lane baselines (match positions used in calendar.html) */
+.cal .band.owner .pill { bottom: 36px; }
+.cal .band.store .pill { bottom: 18px; }
+.cal .band.promo .pill { bottom:  2px; }
+
+/* Colors for those lanes (safe if inline CSS is missing) */
+.cal .band.owner .pill { background:#ffe2c7; color:#8b5200; }
+.cal .band.store .pill { background:#ffc9c9; color:#8f0d22; }
+.cal .band.promo .pill { background:#e1e9ff; color:#0a47a6; }

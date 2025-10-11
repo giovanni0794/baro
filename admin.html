@@ -17,7 +17,7 @@
     .muted { color:#555; font-size:.9rem; }
     .error { color:#b00020; font-weight:600; }
     .hidden { display:none; }
-    table th, table td { border-bottom:1px solid #e6e6e6; }
+    table th, table td { border-bottom:1px solid #e6e6e6; vertical-align: top; }
   </style>
 </head>
 <body>
@@ -84,8 +84,8 @@
       <div class="filters">
         <span class="pill" data-filter="all" aria-current="true">All</span>
         <span class="pill" data-filter="pending">Pending</span>
-        <span class="pill" data-filter="confirmed">Confirmed</span>
-        <span class="pill" data-filter="cancelled">Cancelled</span>
+        <span class="pill" data-filter="confirmed">Approved</span>
+        <span class="pill" data-filter="cancelled">Cancelled/Declined</span>
       </div>
     </div>
 
@@ -144,7 +144,7 @@
     <!-- Owner Reservations -->
     <div class="panel hidden" id="owner-res-panel">
       <h3>Reservations for your listings</h3>
-      <p class="muted">Pending holds show here. Confirm after payment or cancel to free the dates.</p>
+      <p class="muted">Pending holds show here. Approve after payment or deny to free the dates.</p>
       <div id="resv-empty" class="muted">No reservations yet.</div>
       <table id="resv-table" class="hidden" style="width:100%; border-collapse:collapse;">
         <thead>
@@ -197,6 +197,17 @@
     let allOwnerReservations = []
     let currentUserId = null
     let currentProfile = null
+
+    // ---- status helpers (compat with calendar) ----
+    const S = {
+      PENDING:   'pending',
+      APPROVED:  'approved',
+      DECLINED:  'declined',
+      CONFIRMED: 'confirmed',
+      CANCELLED: 'cancelled',
+    }
+    const isApprovedLike = s => (s||'').toLowerCase() === S.APPROVED || (s||'').toLowerCase() === S.CONFIRMED
+    const isCancelledLike = s => (s||'').toLowerCase() === S.CANCELLED || (s||'').toLowerCase() === S.DECLINED
 
     function showSignedIn(user) {
       authPanel.classList.add('hidden')
@@ -251,6 +262,15 @@
       }
     }
 
+    const pad2 = n => String(n).padStart(2,'0')
+    const timeHuman = t => {
+      if (!t) return ''
+      if (t==='24h') return '24 hours'
+      const [H,M] = t.split(':').map(Number)
+      const A = H>=12 ? 'PM' : 'AM'
+      const h = ((H+11)%12)+1
+      return `${h}:${pad2(M)} ${A}`
+    }
     const fmtDate  = d => new Date(d).toLocaleDateString()
     const fmtMoney = c => `$${(c/100).toFixed(2)}`
     const labelFor = role => role === 'admin' ? 'Baro' : role === 'owner' ? 'Lender' : role === 'renter' ? 'Renter' : 'Unknown'
@@ -260,7 +280,7 @@
 
       const { data, error } = await supabase
         .from('reservations')
-        .select('id, start_date, end_date, amount_cents, status, cancelled_at, cancelled_by_role, cancel_notes, listing_id, listings!inner(title, owner_id)')
+        .select('id, start_date, end_date, start_time, end_time, amount_cents, status, cancelled_at, cancelled_by_role, cancel_notes, listing_id, listings!inner(title, owner_id)')
         .eq('listings.owner_id', currentUserId)
         .order('created_at', { ascending:false })
 
@@ -275,9 +295,15 @@
     }
 
     function renderOwnerReservations() {
-      const list = resvFilter === 'all'
-        ? allOwnerReservations
-        : allOwnerReservations.filter(r => r.status === resvFilter)
+      // filter with synonyms
+      const list = allOwnerReservations.filter(r => {
+        if (resvFilter === 'all') return true
+        const s = (r.status||'').toLowerCase()
+        if (resvFilter === 'pending')   return s === S.PENDING
+        if (resvFilter === 'confirmed') return isApprovedLike(s)     // approved OR confirmed
+        if (resvFilter === 'cancelled') return isCancelledLike(s)    // cancelled OR declined
+        return true
+      })
 
       if (!list.length) {
         resvEmpty.textContent = 'No reservations to display.'
@@ -290,67 +316,107 @@
       resvBody.innerHTML = ''
 
       const chip = (txt, bg, fg, brd='#0000') =>
-        `<span style="background:${bg};color:${fg};border:1px solid ${brd};border-radius:999px;padding:.2rem .5rem;font-weight:700;">${txt}</span>`
+        `<span style="background:${bg};color:${fg};border:1px solid ${brd};border-radius:999px;padding:.2rem .5rem;font-weight:700;white-space:nowrap;display:inline-block;">${txt}</span>`
+
       const pendingChip   = chip('pending',   '#fff7e6', '#b36b00', '#ffd188')
+      const approvedChip  = chip('approved',  '#e6ffed', '#0a6',    '#b5f0c5')
       const confirmedChip = chip('confirmed', '#e6ffed', '#0a6',    '#b5f0c5')
+      const declinedChip  = chip('declined',  '#ffe6e6', '#b00020', '#f5b5b5')
+      const cancelledChip = chip('cancelled', '#ffe6e6', '#b00020', '#f5b5b5')
 
       for (const r of list) {
-        const isCancelled = r.status === 'cancelled'
-        const isConfirmed = r.status === 'confirmed'
+        const s = (r.status||'').toLowerCase()
+        const isPending    = s === S.PENDING
+        const isApproved   = isApprovedLike(s)
+        const isDeclined   = s === S.DECLINED
+        const isCancelled  = s === S.CANCELLED
 
-        const cancelledBanner = `
+        const cancelledBanner = (isCancelled || isDeclined) ? `
           <div class="banner-cancel">
-            Cancelled${r.cancelled_by_role ? ` by ${labelFor(r.cancelled_by_role)}` : ''}
+            ${isDeclined ? 'Declined' : 'Cancelled'}
+            ${r.cancelled_by_role ? ` by ${labelFor(r.cancelled_by_role)}` : ''}
             ${r.cancelled_at ? ` • ${new Date(r.cancelled_at).toLocaleString()}` : ''}
             ${r.cancel_notes ? `<small>“${String(r.cancel_notes).replace(/</g,'&lt;')}”</small>` : ''}
-          </div>`
+          </div>` : ''
 
         const roleOptions = currentProfile?.is_admin
           ? `<option value="admin" selected>Baro</option><option value="owner">Lender</option><option value="renter">Renter</option>`
           : `<option value="owner" selected>Lender</option>`
 
-        const statusCell = isCancelled ? '—' : (isConfirmed ? confirmedChip : pendingChip)
-        const actionsCell = isCancelled
-          ? cancelledBanner
-          : isConfirmed
-            ? `
-                <div style="display:flex;flex-direction:column;gap:.4rem;">
-                  <div>${confirmedChip}</div>
-                  <div style="display:flex;align-items:center;gap:.5rem;">
-                    <select class="cancel-as" style="margin-right:.4rem">${roleOptions}</select>
-                    <button class="cancel secondary" data-id="${r.id}">Cancel</button>
-                  </div>
-                </div>`
-            : `
-                <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
-                  <button class="confirm" data-id="${r.id}">Confirm</button>
-                  <select class="cancel-as" style="margin-left:.2rem">${roleOptions}</select>
-                  <button class="cancel secondary" data-id="${r.id}">Cancel</button>
-                </div>`
+        const datesCell = `
+          ${fmtDate(r.start_date)} ${r.start_time ? '• ' + timeHuman(r.start_time) : ''}
+          &nbsp;→&nbsp;
+          ${fmtDate(r.end_date)} ${r.end_time ? '• ' + timeHuman(r.end_time) : ''}
+        `
+
+        let statusCell = ''
+        if (isPending)            statusCell = pendingChip
+        else if (isApproved)      statusCell = (s===S.CONFIRMED ? confirmedChip : approvedChip)
+        else if (isDeclined)      statusCell = declinedChip
+        else if (isCancelled)     statusCell = cancelledChip
+        else                      statusCell = chip(s || 'unknown', '#eee', '#333', '#ddd')
+
+        let actionsCell = ''
+        if (isPending) {
+          actionsCell = `
+            <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+              <button class="approve" data-id="${r.id}">Approve</button>
+              <button class="deny secondary" data-id="${r.id}">Deny</button>
+            </div>`
+        } else if (isApproved) {
+          actionsCell = `
+            <div style="display:flex;flex-direction:column;gap:.4rem;">
+              <div>${statusCell}</div>
+              <div style="display:flex;align-items:center;gap:.5rem;">
+                <select class="cancel-as" style="margin-right:.4rem">${roleOptions}</select>
+                <button class="cancel secondary" data-id="${r.id}">Cancel</button>
+              </div>
+            </div>`
+        } else {
+          actionsCell = cancelledBanner || statusCell
+        }
 
         const tr = document.createElement('tr')
         tr.innerHTML = `
           <td style="padding:.4rem;">${r.listings?.title || 'Listing #'+r.listing_id}</td>
-          <td style="padding:.4rem;">${fmtDate(r.start_date)} → ${fmtDate(r.end_date)}</td>
-          <td style="padding:.4rem;">${fmtMoney(r.amount_cents)}</td>
+          <td style="padding:.4rem;">${datesCell}</td>
+          <td style="padding:.4rem;">${fmtMoney(r.amount_cents || 0)}</td>
           <td style="padding:.4rem;">${statusCell}</td>
           <td style="padding:.4rem;">${actionsCell}</td>
         `
         resvBody.appendChild(tr)
       }
 
-      // wire confirm
-      resvBody.querySelectorAll('button.confirm').forEach(btn=>{
+      // wire approve/deny for pending
+      resvBody.querySelectorAll('button.approve').forEach(btn=>{
         btn.addEventListener('click', async (e)=>{
           const id = parseInt(e.currentTarget.dataset.id,10)
           e.currentTarget.disabled = true
-          const { error } = await supabase.from('reservations').update({ status: 'confirmed' }).eq('id', id)
-          if (error) { alert('Confirm failed: ' + error.message); e.currentTarget.disabled = false; return }
+          const { error } = await supabase.from('reservations').update({ status: S.APPROVED }).eq('id', id)
+          if (error) { alert('Approve failed: ' + error.message); e.currentTarget.disabled = false; return }
+          await loadOwnerReservations()
+        })
+      })
+      resvBody.querySelectorAll('button.deny').forEach(btn=>{
+        btn.addEventListener('click', async (e)=>{
+          const tr = e.currentTarget.closest('tr')
+          const id = parseInt(e.currentTarget.dataset.id,10)
+          const role = (tr.querySelector('select.cancel-as')?.value) || (currentProfile?.is_admin ? 'admin' : 'owner')
+          const notes = prompt('Add denial notes (optional):', '') || null
+          e.currentTarget.disabled = true
+          const { error } = await supabase.from('reservations').update({
+            status: S.DECLINED,
+            cancelled_at: new Date().toISOString(),
+            cancelled_by_user_id: currentUserId,
+            cancelled_by_role: role,
+            cancel_notes: notes
+          }).eq('id', id)
+          if (error) { alert('Deny failed: ' + error.message); e.currentTarget.disabled = false; return }
           await loadOwnerReservations()
         })
       })
 
-      // wire cancel with role + notes
+      // wire cancel for approved/confirmed
       resvBody.querySelectorAll('button.cancel').forEach(btn=>{
         btn.addEventListener('click', async (e)=>{
           const tr = e.currentTarget.closest('tr')
@@ -361,7 +427,7 @@
 
           e.currentTarget.disabled = true
           const { error } = await supabase.from('reservations').update({
-            status: 'cancelled',
+            status: S.CANCELLED,
             cancelled_at: new Date().toISOString(),
             cancelled_by_user_id: currentUserId,
             cancelled_by_role: role,
@@ -422,7 +488,7 @@
       authStatus.textContent = error ? `Error: ${error.message}` : 'Account created. Check email to confirm, then sign in.'
     })
 
-    // ---------- Log out (same behavior as avatar menu) ----------
+    // ---------- Log out ----------
     $('btn-signout').addEventListener('click', async () => {
       await supabase.auth.signOut()
       try { location.assign('index.html') } catch { location.assign('/') }

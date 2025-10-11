@@ -6,116 +6,103 @@
   <title>BARO • Calendar</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* --- page frame --- */
+    /* layout */
     main { max-width:1100px; margin:0 auto; padding:1.25rem 1rem 2rem; }
-
-    /* --- two-column shell --- */
     .cal-wrap { display:grid; grid-template-columns: 1fr 320px; gap:1rem; }
     @media (max-width: 900px){ .cal-wrap { grid-template-columns: 1fr; } }
-
-    /* left column containers so header width matches calendar width */
     .left-col { display:grid; gap:.6rem; }
 
-    /* --- calendar header (prev/title/next + jump controls + filters button) --- */
-    .cal-header{
-      background:#fff; border:1px solid #eee; border-radius:10px;
-      padding:.6rem .6rem .6rem; display:grid; gap:.55rem;
-    }
-    .cal-nav{
-      display:grid; grid-template-columns:auto 1fr auto; gap:.5rem; align-items:center;
-    }
+    /* header */
+    .cal-header{ background:#fff; border:1px solid #e6e6e6; border-radius:10px; padding:.6rem; display:grid; gap:.55rem; }
+    .cal-nav{ display:grid; grid-template-columns:auto 1fr auto; gap:.5rem; align-items:center; }
     .cal-title{ font-weight:800; font-size:1.35rem; text-align:center; }
-    .navbtn{
-      border:none; background:#000; color:#fff; border-radius:10px; padding:.5rem .8rem; cursor:pointer;
-    }
+    .navbtn{ border:none; background:#111; color:#fff; border-radius:10px; padding:.5rem .8rem; cursor:pointer; }
 
-    .jump-controls{
-      display:grid; grid-template-columns:1fr 1fr auto auto; gap:.5rem; align-items:center;
-    }
-    .jump-controls select{
-      width:100%; padding:.5rem .6rem; border:1px solid #ddd; border-radius:8px; background:#fff;
-    }
-    .pill{
-      padding:.45rem .7rem; border:1px solid #ddd; border-radius:999px; background:#fff; cursor:pointer;
-    }
+    .jump-controls{ display:grid; grid-template-columns:1fr 1fr auto auto; gap:.5rem; align-items:center; }
+    .jump-controls select{ width:100%; padding:.5rem .6rem; border:1px solid #d6d6d6; border-radius:8px; background:#fff; }
+    .pill{ padding:.45rem .7rem; border:1px solid #d6d6d6; border-radius:999px; background:#fff; cursor:pointer; }
 
-    /* --- compact filter toggles (collapsible) --- */
-    .filters-row{
-      background:#fff; border:1px solid #eee; border-radius:10px;
-      padding:.5rem; display:grid; grid-template-columns:repeat(4, minmax(120px,1fr)); gap:.5rem;
-    }
+    /* filters */
+    .filters-row{ background:#fff; border:1px solid #e6e6e6; border-radius:10px; padding:.5rem; display:grid; grid-template-columns:repeat(5, minmax(120px,1fr)); gap:.5rem; }
     .filters-row[hidden]{ display:none; }
-    .filter-toggle{
-      position:relative; display:inline-flex; align-items:center; justify-content:center;
-      gap:.4rem; padding:.45rem .6rem; border-radius:10px;
-      border:1px solid #dcdcdc; background:#f7f7f7; color:#222;
-      font-weight:700; cursor:pointer; user-select:none;
-      box-shadow:0 1px 0 rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
-      transition:transform .02s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
-    }
+    .filter-toggle{ position:relative; display:inline-flex; align-items:center; justify-content:center; gap:.4rem; padding:.45rem .6rem; border-radius:10px; border:1px solid #cfcfcf; background:#f5f5f5; color:#1b1b1b; font-weight:700; cursor:pointer; user-select:none; box-shadow:0 1px 0 rgba(0,0,0,.05), 0 1px 2px rgba(0,0,0,.08); transition:transform .02s ease, box-shadow .15s ease, background .15s ease, color .15s ease; }
     .filter-toggle:active{ transform:translateY(1px); }
-    .filter-toggle .check{
-      width:14px; height:14px; border-radius:3px; border:1px solid #bbb; background:#fff;
-      display:inline-grid; place-items:center; font-size:12px; line-height:1;
-    }
-    .filter-toggle[data-on="true"]{ box-shadow: inset 0 0 0 2px #0002; color:#111; }
-    .filter-lend[data-on="true"] { background:#e5fff0; color:#065f46; border-color:#bdebd8; }
-    .filter-rent[data-on="true"] { background:#e9f2ff; color:#0b57d0; border-color:#c8dcff; }
-    .filter-owner[data-on="true"]{ background:#fff1e6; color:#b36b00; border-color:#ffd8b5; }
-    .filter-store[data-on="true"]{ background:#ffe6e6; color:#b00020; border-color:#ffc1c1; }
+    .filter-toggle .check{ width:14px; height:14px; border-radius:3px; border:1px solid #aaa; background:#fff; display:inline-grid; place-items:center; font-size:12px; line-height:1; }
+    .filter-toggle[data-on="true"]{ box-shadow: inset 0 0 0 2px #0002; }
+    .filter-lend[data-on="true"]  { background:#d3f3e6; color:#06553f; border-color:#76cfb1; }
+    .filter-rent[data-on="true"]  { background:#d7e4ff; color:#0a47a6; border-color:#90b0ff; }
+    .filter-owner[data-on="true"] { background:#ffe2c7; color:#8b5200; border-color:#ffb870; }
+    .filter-store[data-on="true"] { background:#ffc9c9; color:#8f0d22; border-color:#ff9a9a; }
+    .filter-pend[data-on="true"]  { background:#ffeaa5; color:#7a5f00; border-color:#ffd257; }
     .filter-toggle[data-on="true"] .check{ border-color:currentColor; }
     .filter-toggle[data-on="true"] .check::after{ content:"✓"; }
 
-    /* calendar box */
-    .cal { background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.08); overflow:hidden; }
+    /* calendar shell */
+    .cal { position:relative; background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.08); overflow:hidden; }
     .cal-grid { display:grid; grid-template-columns: repeat(7, 1fr); }
-    .dow { background:#fafafa; padding:.5rem .4rem; border-bottom:1px solid #eee; font-weight:700; font-size:.9rem; text-align:center; }
-    .day {
-      height:110px;
-      border-right:1px solid #f3f3f3; border-bottom:1px solid #f3f3f3;
-      padding:.35rem; position:relative; cursor:pointer; overflow:hidden;
-      display:flex; flex-direction:column;
-    }
+    .dow { background:#f6f6f6; padding:.35rem .4rem .4rem; border-bottom:1px solid #ececec; font-weight:800; font-size:.9rem; text-align:center; }
+    .dow .hrs{ display:block; margin-top:.15rem; font-weight:600; font-size:.72rem; color:#626262; }
+    .day { height:110px; border-right:1px solid #f1f1f1; border-bottom:1px solid #f1f1f1; padding:.35rem; position:relative; cursor:pointer; overflow:visible; display:flex; flex-direction:column; }
     .day:nth-child(7n) { border-right: none; }
-    .date { font-weight:700; font-size:.95rem; }
-    .past { background:#e9e9e9; color:#666; }
+    .date { font-weight:800; font-size:.96rem; }
+    .past { background:#ececec; color:#575757; }
     .today .date{ outline:2px solid #0b57d0; outline-offset:2px; border-radius:999px; padding:.1rem .35rem; }
 
-    /* summary chips zone under date */
-    .chips { margin-top:.2rem; display:flex; flex-direction:column; gap:.2rem; max-height:66px; overflow:hidden; }
-    .chip { display:inline-flex; align-items:center; gap:.35rem; font-size:.78rem; border-radius:6px; padding:.15rem .35rem; width:max-content; line-height:1.15; }
-    /* rentals as edges only (kept for renter summary) */
-    .chip-rent-start { background:#fff; color:#0b57d0; border:2px solid #0b57d0; }
-    .chip-rent-end   { background:#0b57d0; color:#fff; }
-    /* lender summaries */
-    .chip-sum        { background:#fff; border:1px solid #ddd; color:#111; }
-    .chip-sum.l-deliver { border-color:#0b57d0; color:#0b57d0; }   /* to deliver */
-    .chip-sum.l-handoff { border-color:#087f5b; color:#087f5b; }   /* pickup at owner / handoff */
-    .chip-sum.l-rtn-pu  { border-color:#b00020; color:#b00020; }   /* return pickup */
-    .chip-sum.l-rtn-due { border-color:#b36b00; color:#b36b00; }   /* return due at owner */
-    /* blackouts as bars */
-    .blk-lane { position:absolute; left:4px; right:4px; top:22px; height:16px; z-index:1; }
-    .blk-strip { position:absolute; left:0; right:0; height:16px; display:flex; align-items:center; justify-content:center; font-size:.72rem; line-height:1; pointer-events:none; }
-    .blk-owner { background:#fff1e6; color:#b36b00; }
-    .blk-store { background:#ffe6e6; color:#b00020; }
-    .run-solo { border-radius:8px; }
-    .run-start{ border-radius:8px 0 0 8px; }
-    .run-mid  { border-radius:0; }
-    .run-end  { border-radius:0 8px 8px 0; }
-    .bar-label { pointer-events:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 .3rem; }
-    .blk-strip:hover .bar-label, .promo-strip:hover .promo-label { animation: marquee 8s linear infinite; }
-    @keyframes marquee { from { transform:translateX(0) } to { transform:translateX(-40%) } }
+    /* custom-hours clock icon */
+    .clock-ico{ position:absolute; top:3px; right:4px; font-size:12px; color:#111; }
 
-    /* promo lane at bottom of each cell */
-    .promo-lane { position:absolute; left:4px; right:4px; bottom:4px; height:18px; z-index:2; }
-    .promo-strip { position:absolute; left:0; right:0; height:18px; background:#f0f5ff; color:#0052cc;
-      display:flex; align-items:center; justify-content:center; font-size:.72rem; line-height:1; pointer-events:none; }
-    .promo-run-solo { border-radius:8px; }
-    .promo-run-start{ border-radius:8px 0 0 8px; }
-    .promo-run-mid  { border-radius:0; }
-    .promo-run-end  { border-radius:0 8px 8px 0; }
-    .promo-label { pointer-events:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 .3rem; }
+    /* overlay layer for cross-cell bands (above borders) */
+    .band-layer{
+      position:absolute; left:0; right:0;
+      pointer-events:none;
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+      z-index:5;
+    }
+    .band{ position:relative; }
+    .band .pill{
+      position:absolute; left:-6px; right:-6px; height:16px;
+      border-radius:8px; display:flex; align-items:center; justify-content:center;
+      font-size:.70rem; line-height:1; padding:0 .4rem;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .band.owner .pill { background:#ffe2c7; color:#8b5200; bottom:36px; }
+    .band.store .pill { background:#ffc9c9; color:#8f0d22; bottom:18px; }
+    .band.promo .pill { background:#e1e9ff; color:#0a47a6; bottom:2px; }
 
+    /* compact chips */
+    .chips { margin-top:.2rem; display:flex; flex-direction:column; gap:.16rem; max-height:52px; overflow:hidden; }
+    .chip  { display:inline-flex; align-items:center; gap:.28rem; font-size:.72rem; line-height:1.05; border-radius:5px; padding:.10rem .28rem; width:max-content; border:1px solid transparent; }
+
+    .chip-rent-start { background:#fff; color:#0f43a5; border-color:#0f43a5; }
+    .chip-rent-end   { background:#0f43a5; color:#fff; }
+    .chip-lend-start { background:#fff; color:#0a6c52; border-color:#0a6c52; }
+    .chip-lend-end   { background:#0a6c52; color:#fff; }
+
+    /* pending color system */
+    :root {
+      --pending-yellow:#ffeaa5;
+      --action-red:#c52a35;
+      --lender-green:#06553f; /* lender */
+      --renter-blue:#0a47a6;  /* renter */
+    }
+    /* Red border for ALL pending; text color codes the role */
+    .chip-pend-lend-start,
+    .chip-pend-lend-end {
+      background:var(--pending-yellow);
+      border-color:var(--action-red);
+      border-width:2px;
+      color:var(--lender-green);
+    }
+    .chip-pend-rent-start,
+    .chip-pend-rent-end {
+      background:var(--pending-yellow);
+      border-color:var(--action-red);
+      border-width:2px;
+      color:var(--renter-blue);
+    }
+
+    .chip-more   { background:#e7e7e7; color:#4a4a4a; }
     .sel { outline:2px solid #0b57d0; outline-offset:-2px; background:#eef6ff; }
 
     /* side panel */
@@ -123,40 +110,48 @@
     .panel h3{ margin:.2rem 0 .4rem; }
     .vgap { display:grid; gap:.6rem; }
     .btn-full { width:100%; }
-
-    /* paired buttons layout */
     .btn-pair { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; }
 
-    /* color variants */
-    .btn { background:#000; color:#fff; border:none; cursor:pointer; border-radius:8px; padding:.55rem .6rem; }
-    .btn.orange { background:#b36b00; } /* mark unavailable */
-    .btn.gold   { background:#ca8a04; } /* mark available */
-    .btn.red    { background:#b00020; } /* block all rentals */
-    .btn.green  { background:#28a745; } /* remove block */
-    .btn.blue   { background:#007bff; } /* add promo */
-    .btn.gray   { background:#6b7280; } /* remove promo */
-    .btn.white  { background:#fff; color:#111; border:1px solid #ddd; }
+    .btn { background:#111; color:#fff; border:none; cursor:pointer; border-radius:8px; padding:.55rem .6rem; }
+    .btn.orange { background:#8f5200; }
+    .btn.gold   { background:#8c6a00; }
+    .btn.red    { background:#8f0d22; }
+    .btn.green  { background:#1b7d33; }
+    .btn.blue   { background:#0b57d0; }
+    .btn.gray   { background:#4d5563; }
+    .btn.white  { background:#fff; color:#111; border:1px solid #d6d6d6; }
 
-    .hint { font-size:.9rem; color:#555; }
-    .banner { padding:.5rem .6rem; border-radius:8px; background:#fff7e6; color:#b36b00; border:1px solid #ffd188; margin-bottom:.5rem; }
+    .hint { font-size:.9rem; color:#565656; }
+    .banner { padding:.5rem .6rem; border-radius:8px; background:#fff7e6; color:#9a5a00; border:1px solid #ffd188; margin-bottom:.5rem; }
 
-    /* agenda */
     .agenda { background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.08); padding:1rem; }
     .agenda h4{ margin:.2rem 0 .4rem; }
     .agenda .subtitle{ margin:.1rem 0 .6rem; color:#666; font-size:.92rem; }
     .agenda ul{ margin:0; padding-left:1.1rem; }
-    .agenda li{ margin:.2rem 0; }
+    .agenda li{ margin:.25rem 0; }
+    .agenda-conflict{ border:1px solid #d73a49; background:#ffeef0; padding:.25rem .4rem; border-radius:6px; list-style: "⚠︎ "; }
 
-    /* promo modal */
-    dialog.modal{ border:none; border-radius:12px; padding:0; max-width:560px; width:calc(100% - 2rem); }
-    .modal > form{ padding:1rem; display:grid; gap:.6rem; }
-    .modal .row{ display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
-    .modal .actions{ display:flex; gap:.5rem; justify-content:flex-end; margin-top:.4rem; }
-    .muted{ color:#666; font-size:.9rem; }
+    /* hours UI */
+    .hours-card { border:1px solid #eee; border-radius:8px; padding:.6rem; display:grid; gap:.5rem; }
+    .row2 { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; }
+    .row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.5rem; }
+    .time { width:100%; padding:.45rem .5rem; border:1px solid #d6d6d6; border-radius:8px; background:#fff; }
+    .muted { color:#666; font-size:.9rem; }
+
+    /* Compact Sun–Sat selector (7 in one row) */
+    .dow-compact { display:grid; grid-template-columns: repeat(7, 1fr); gap:.25rem; }
+    .dow-compact .cell{
+      border:1px solid #ddd; border-radius:10px;
+      padding:.2rem .25rem;
+      display:grid; grid-template-rows:auto auto;
+      align-items:center; justify-items:center;
+    }
+    .dow-compact .lbl{ font-weight:800; font-size:.8rem; line-height:1; }
+    .dow-compact input{ width:14px; height:14px; margin-top:.15rem; accent-color:#111; }
   </style>
 </head>
 <body>
-  <!-- shared header -->
+  <!-- header -->
   <div id="header"></div>
   <script>
     (async () => {
@@ -177,7 +172,6 @@
 
   <main>
     <div class="cal-wrap">
-      <!-- LEFT COLUMN: header + filters + calendar + agenda -->
       <div class="left-col">
         <!-- calendar header -->
         <section class="cal-header">
@@ -199,26 +193,20 @@
           </div>
         </section>
 
-        <!-- filter toggles -->
+        <!-- filters -->
         <div class="filters-row" id="filters" hidden>
-          <button type="button" class="filter-toggle filter-lend"  data-key="lend"  data-on="true" aria-pressed="true">
-            <span class="check" aria-hidden="true"></span> Lender obligations
-          </button>
-          <button type="button" class="filter-toggle filter-rent"  data-key="rent"  data-on="true" aria-pressed="true">
-            <span class="check" aria-hidden="true"></span> Your rentals
-          </button>
-          <button type="button" class="filter-toggle filter-owner" data-key="owner" data-on="true" aria-pressed="true">
-            <span class="check" aria-hidden="true"></span> Owner unavailable
-          </button>
-          <button type="button" class="filter-toggle filter-store" data-key="store" data-on="true" aria-pressed="true">
-            <span class="check" aria-hidden="true"></span> Store blocked
-          </button>
+          <button type="button" class="filter-toggle filter-lend"  data-key="lend"  data-on="true" aria-pressed="true"><span class="check"></span> Lender obligations</button>
+          <button type="button" class="filter-toggle filter-rent"  data-key="rent"  data-on="true" aria-pressed="true"><span class="check"></span> Your rentals</button>
+          <button type="button" class="filter-toggle filter-owner" data-key="owner" data-on="true" aria-pressed="true"><span class="check"></span> Owner unavailable</button>
+          <button type="button" class="filter-toggle filter-store" data-key="store" data-on="true" aria-pressed="true"><span class="check"></span> Store blocked</button>
+          <button type="button" class="filter-toggle filter-pend"  data-key="pending" data-on="true" aria-pressed="true"><span class="check"></span> Pending reservations</button>
         </div>
 
-        <!-- calendar grid -->
-        <section class="cal">
+        <!-- calendar -->
+        <section class="cal" id="cal">
           <div class="cal-grid" id="grid-dow"></div>
           <div class="cal-grid" id="grid-days"></div>
+          <div class="band-layer" id="band-layer" aria-hidden="true"></div>
         </section>
 
         <!-- agenda -->
@@ -229,9 +217,58 @@
         </section>
       </div>
 
-      <!-- RIGHT COLUMN: shop-wide tools only -->
+      <!-- right tools -->
       <aside class="panel" id="manage">
         <div id="blk-banner" class="banner" style="display:none;"></div>
+
+        <!-- Pending quick action -->
+        <button class="btn blue btn-full" id="btn-view-pending">View pending reservations (<span id="pending-count">0</span>)</button>
+
+        <!-- HOURS (weekly + overrides) -->
+        <div class="hours-card">
+          <h3 style="margin:.2rem 0;">Shop hours</h3>
+          <div class="muted">Set weekly hours (Sun–Sat). Use custom overrides for specific dates. Changing weekly hours can optionally remove conflicting custom overrides.</div>
+
+          <div class="dow-compact" id="wk-dow"><!-- generated --></div>
+
+          <div class="row2">
+            <div>
+              <label>Open</label>
+              <select class="time" id="wk-open"></select>
+            </div>
+            <div>
+              <label>Close</label>
+              <select class="time" id="wk-close"></select>
+            </div>
+          </div>
+
+          <div class="row2">
+            <button class="btn green" id="btn-save-weekly">Save weekly hours for selected days</button>
+            <button class="btn gray"  id="btn-refresh-weekly">Reload weekly hours</button>
+          </div>
+
+          <hr style="border:none;border-top:1px solid #eee">
+
+          <div class="row3">
+            <div>
+              <label>Custom open</label>
+              <select class="time" id="ov-open"></select>
+            </div>
+            <div>
+              <label>Custom close</label>
+              <select class="time" id="ov-close"></select>
+            </div>
+            <div style="display:flex; align-items:center; gap:.4rem; margin-top:1.6rem;">
+              <input type="checkbox" id="ov-247">
+              <label for="ov-247">Open 24 hours</label>
+            </div>
+          </div>
+          <div class="row2">
+            <button class="btn blue" id="btn-save-overrides">Save custom hours for selected dates</button>
+            <button class="btn gray" id="btn-remove-overrides">Remove custom hours on selected dates</button>
+          </div>
+          <div class="muted">Tip: select a date range on the calendar to apply custom hours in bulk.</div>
+        </div>
 
         <h3>Shop-wide tools</h3>
         <p class="hint">Select dates on the calendar to manage availability, store-wide blocks, and promotions across all your listings.</p>
@@ -240,24 +277,24 @@
           <div>
             <label>Availability</label>
             <div class="btn-pair">
-              <button class="btn orange" id="btn-unavail-add"  title="Mark selected dates as owner unavailable (applies to all your listings).">Mark unavailable</button>
-              <button class="btn gold"   id="btn-unavail-remove" title="Remove owner-unavailable marks on selected dates.">Mark available</button>
+              <button class="btn orange" id="btn-unavail-add">Mark unavailable</button>
+              <button class="btn gold"   id="btn-unavail-remove">Mark available</button>
             </div>
           </div>
 
           <div>
             <label>Store recall</label>
             <div class="btn-pair">
-              <button class="btn red"   id="btn-block-add"    title="Block all rentals for selected dates (store_blocked).">Block all rentals</button>
-              <button class="btn green" id="btn-block-remove" title="Remove store-wide block for selected dates.">Remove block</button>
+              <button class="btn red"   id="btn-block-add">Block all rentals</button>
+              <button class="btn green" id="btn-block-remove">Remove block</button>
             </div>
           </div>
 
           <div>
             <label>Promotions</label>
             <div class="btn-pair">
-              <button class="btn blue" id="btn-promo-add"    title="Add promotional pricing over a date range for all your listings.">Add promotion</button>
-              <button class="btn gray" id="btn-promo-remove" title="Trim/remove promotions overlapping selected dates.">Remove promotion</button>
+              <button class="btn blue" id="btn-promo-add">Add promotion</button>
+              <button class="btn gray" id="btn-promo-remove">Remove promotion</button>
             </div>
           </div>
 
@@ -267,18 +304,15 @@
     </div>
   </main>
 
-  <!-- Promo modal -->
+  <!-- promo modal -->
   <dialog class="modal" id="promo-modal">
     <form method="dialog" id="promo-form">
       <h3 style="margin:.25rem 0;">Add promotional pricing</h3>
 
-      <div class="row">
+      <div class="row2">
         <div>
           <label>Discount type</label>
-          <select id="promo-type">
-            <option value="percent">% off</option>
-            <option value="flat">$ off per day</option>
-          </select>
+          <select id="promo-type"><option value="percent">% off</option><option value="flat">$ off per day</option></select>
         </div>
         <div>
           <label>Applies to</label>
@@ -286,35 +320,65 @@
         </div>
       </div>
 
-      <div class="row">
-        <div>
-          <label>Range start</label>
-          <input type="date" id="promo-start" required />
-        </div>
-        <div>
-          <label>Range end</label>
-          <input type="date" id="promo-end" required />
-        </div>
+      <div class="row2">
+        <div><label>Range start</label><input type="date" id="promo-start" required /></div>
+        <div><label>Range end</label><input type="date" id="promo-end" required /></div>
       </div>
 
-      <div class="row">
+      <div class="row2">
         <div>
           <label>Tier 1</label>
-          <input id="t1-value" type="number" step="0.01" placeholder="10 (percent or dollars)" />
+          <input id="t1-value" type="number" step="0.01" placeholder="10" />
           <div class="muted">Min days <input id="t1-min" type="number" min="1" style="width:5em"> Max <input id="t1-max" type="number" min="1" style="width:5em"></div>
         </div>
         <div>
           <label>Tier 2</label>
-          <input id="t2-value" type="number" step="0.01" placeholder="20 (percent or dollars)" />
+          <input id="t2-value" type="number" step="0.01" placeholder="20" />
           <div class="muted">Min days <input id="t2-min" type="number" min="1" style="width:5em"> Max <input id="t2-max" type="number" min="1" style="width:5em"></div>
         </div>
       </div>
 
-      <div class="actions">
+      <div class="actions" style="display:flex; gap:.5rem; justify-content:flex-end; margin-top:.4rem;">
         <button value="cancel" type="button" id="promo-cancel">Cancel</button>
         <button class="btn blue" id="promo-save" type="button">Save promo</button>
       </div>
       <p class="muted" style="margin:.25rem 0 0;">Saving will replace overlapping promos for your listings during this range.</p>
+    </form>
+  </dialog>
+
+  <!-- pending approvals modal -->
+  <dialog class="modal" id="pending-modal" style="max-width:900px;">
+    <form method="dialog">
+      <h3 style="margin:.25rem 0 0.6rem;">Approve / Deny pending reservations</h3>
+      <div id="pending-table-wrap" style="max-height:60vh; overflow:auto; border:1px solid #eee; border-radius:8px;">
+        <table style="width:100%; border-collapse:collapse; font-size:14px;">
+          <thead style="position:sticky; top:0; background:#fafafa;">
+            <tr>
+              <th style="text-align:left; padding:.5rem; border-bottom:1px solid #eee;">Listing</th>
+              <th style="text-align:left; padding:.5rem; border-bottom:1px solid #eee;">Start</th>
+              <th style="text-align:left; padding:.5rem; border-bottom:1px solid #eee;">End</th>
+              <th style="text-align:left; padding:.5rem; border-bottom:1px solid #eee;">Renter</th>
+              <th style="text-align:left; padding:.5rem; border-bottom:1px solid #eee;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pending-tbody"></tbody>
+        </table>
+      </div>
+      <div style="display:flex; gap:.5rem; justify-content:flex-end; margin-top:.6rem;">
+        <button class="btn white" id="pending-close" value="cancel">Close</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- confirm weekly override modal -->
+  <dialog class="modal" id="weekly-confirm" style="max-width:620px;">
+    <form method="dialog">
+      <h3 style="margin:.25rem 0 .6rem;">Update weekly hours</h3>
+      <p id="weekly-msg" class="muted" style="margin:.2rem 0 .6rem;"></p>
+      <div style="display:flex; gap:.5rem; justify-content:flex-end;">
+        <button class="btn white" value="keep">Keep custom date overrides</button>
+        <button class="btn red"   value="override">Override & remove overrides on affected dates</button>
+      </div>
     </form>
   </dialog>
 
@@ -326,104 +390,67 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cGxwaHFma2R2anRwaGFmY3l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDAxOTQsImV4cCI6MjA3NTQxNjE5NH0.cRm0HrVuhEgALHiyOtlMQWMvDcFXFaBZvBOysshpzjU'
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-    /* ---------- config ---------- */
-    const MAX_CHANGE_MONTHS = 15  // prohibit changes beyond this many months ahead
+    const MAX_CHANGE_MONTHS = 15
+    const STATUS_APPROVED='approved'
+    const STATUS_DECLINED='declined'
 
-    /* ---------- small date helpers (LOCAL, not UTC) ---------- */
-    const toLocalISO = (d) => {
-      const y = d.getFullYear(), m = d.getMonth()+1, day = d.getDate()
-      return `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`
-    }
-    const parseLocal = (iso) => {
-      const [y,m,d] = iso.split('-').map(Number)
-      return new Date(y, m-1, d) // local midnight
-    }
-    const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate()+n)
-    const addDaysISO = (iso, n) => toLocalISO(addDays(parseLocal(iso), n))
-    const addMonths = (d, n) => new Date(d.getFullYear(), d.getMonth()+n, 1)
-    const sameDay = (a,b) => parseLocal(a).getTime() === parseLocal(b).getTime()
-    const fmtHuman = (isoStr) => {
-      const d = parseLocal(isoStr)
-      return d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' })
-    }
+    /* date utils */
+    const toLocalISO = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    const parseLocal = (iso) => { const [y,m,day]=iso.split('-').map(Number); return new Date(y,m-1,day) }
+    const addDays = (d,n)=> new Date(d.getFullYear(), d.getMonth(), d.getDate()+n)
+    const addDaysISO = (iso,n)=> toLocalISO(addDays(parseLocal(iso),n))
+    const addMonths = (d,n)=> new Date(d.getFullYear(), d.getMonth()+n, 1)
+    const sameDay = (a,b)=> parseLocal(a).getTime() === parseLocal(b).getTime()
+    const fmtHuman = (iso)=> parseLocal(iso).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})
     const pad2 = (n)=> String(n).padStart(2,'0')
-    const timeHuman = (t)=> {
-      if (!t) return ''
-      const [H,M] = t.split(':').map(Number)
-      const ampm = H>=12 ? 'PM':'AM'
-      const h = ((H+11)%12)+1
-      return `${h}:${pad2(M)} ${ampm}`
-    }
-
+    const timeHuman = (t)=>{ if(!t)return ''; if(t==='24h') return '24 hours'; const [H,M]=t.split(':').map(Number); const A=H>=12?'PM':'AM'; const h=((H+11)%12)+1; return `${h}:${pad2(M)} ${A}` }
     const $ = s => document.querySelector(s)
-    const gridDow = $('#grid-dow'), gridDays = $('#grid-days'), title = $('#title')
+
+    /* DOM */
+    const calEl = $('#cal')
+    const gridDow = $('#grid-dow'), gridDays = $('#grid-days'), bandLayer = $('#band-layer'), title = $('#title')
     const prevBtn = $('#prev'), nextBtn = $('#next')
     const jumpMonth = $('#jump-month'), jumpYear = $('#jump-year'), jumpToday = $('#jump-today'), toggleFilters = $('#toggle-filters')
-    const banner = $('#blk-banner')
-    const managePanel = $('#manage')
-    const filtersRow = $('#filters')
-
+    const banner = $('#blk-banner'), managePanel = $('#manage'), filtersRow = $('#filters')
     const agendaTitle = $('#agenda-title'), agendaSub = $('#agenda-sub'), agendaList = $('#agenda-list')
+    const pendingBtn = $('#btn-view-pending'), pendingCountEl = $('#pending-count')
 
-    // Filter button state with persistence
-    let filters = { lend:true, rent:true, owner:true, store:true }
-    try {
-      const saved = JSON.parse(localStorage.getItem('baro_cal_filters')||'{}')
-      filters = { ...filters, ...saved }
-    } catch {}
-    const applyFilterButtonsFromState = () => {
-      document.querySelectorAll('#filters .filter-toggle').forEach(btn=>{
-        const k = btn.dataset.key
-        const on = !!filters[k]
-        btn.dataset.on = on ? 'true':'false'
-        btn.setAttribute('aria-pressed', on ? 'true':'false')
-      })
-    }
-    const persistFilters = () => localStorage.setItem('baro_cal_filters', JSON.stringify(filters))
-    applyFilterButtonsFromState()
+    // Hours controls
+    const wkOpen = $('#wk-open'), wkClose = $('#wk-close'), wkDOW = $('#wk-dow')
+    const ovOpen = $('#ov-open'), ovClose = $('#ov-close'), ov247 = $('#ov-247')
+    const btnSaveWeekly = $('#btn-save-weekly'), btnRefreshWeekly = $('#btn-refresh-weekly')
+    const weeklyConfirm = $('#weekly-confirm'), weeklyMsg = $('#weekly-msg')
 
-    // filter container click handler
-    filtersRow.addEventListener('click', (e)=>{
-      const btn = e.target.closest('.filter-toggle'); if (!btn) return
-      const k = btn.dataset.key
-      const on = btn.dataset.on === 'true'
-      btn.dataset.on = on ? 'false' : 'true'
-      btn.setAttribute('aria-pressed', on ? 'false' : 'true')
-      filters[k] = !on
-      persistFilters()
-      render(); updateAgenda()
-    })
-    toggleFilters.addEventListener('click', ()=>{
-      const shown = !filtersRow.hasAttribute('hidden')
-      if (shown) { filtersRow.setAttribute('hidden',''); toggleFilters.setAttribute('aria-expanded','false')}
-      else { filtersRow.removeAttribute('hidden'); toggleFilters.setAttribute('aria-expanded','true')}
-    })
+    /* filters (with persistence) */
+    let filters = { lend:true, rent:true, owner:true, store:true, pending:true }
+    try { filters = { ...filters, ...(JSON.parse(localStorage.getItem('baro_cal_filters')||'{}')) } } catch {}
+    const saveFilters = () => localStorage.setItem('baro_cal_filters', JSON.stringify(filters))
+    const syncFilterButtons = () => document.querySelectorAll('#filters .filter-toggle').forEach(b=>{ const k=b.dataset.key; const on=!!filters[k]; b.dataset.on=on?'true':'false'; b.setAttribute('aria-pressed',on?'true':'false') })
+    syncFilterButtons()
 
+    filtersRow.addEventListener('click', (e)=>{ const b=e.target.closest('.filter-toggle'); if(!b)return; const k=b.dataset.key; const on=b.dataset.on==='true'; b.dataset.on=on?'false':'true'; b.setAttribute('aria-pressed',on?'false':'true'); filters[k]=!on; saveFilters(); render(); updateAgenda() })
+    toggleFilters.addEventListener('click', ()=>{ const shown=!filtersRow.hasAttribute('hidden'); if(shown){ filtersRow.setAttribute('hidden',''); toggleFilters.setAttribute('aria-expanded','false') } else { filtersRow.removeAttribute('hidden'); toggleFilters.setAttribute('aria-expanded','true') } })
+
+    /* DOW constants */
     const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
-    for (const d of DOW) {
-      const el = document.createElement('div'); el.className='dow'; el.textContent=d; gridDow.appendChild(el)
-    }
 
-    // deep link: ?listing=<id> will narrow counts + agenda to that listing
-    const params = new URLSearchParams(location.search)
-    const focusListingParam = params.get('listing')
-    const focusListingId = focusListingParam ? Number(focusListingParam) : null
-
-    // state
-    let session = null, userId = null, isAdmin = false, isLender = false
+    /* state */
+    let session=null, userId=null, isAdmin=false, isLender=false
     let view = new Date(); view.setDate(1)
-    let selection = new Set() // ISO dates
-    let myRentals = [], myLending = [], myListings = []
-    let blackouts = [] // daily dots { listing_id, date, kind }
-    let promotions = [] // promo spans { id, listing_id, start_date, end_date, kind, tiers... }
+    let selection = new Set()
+    let myRentals=[], myLending=[], myListings=[]
+    let blackouts=[], promotions=[]
 
-    // auth + profile
+    // Hours state
+    let weeklyHours=null
+    let overridesByISO={} // { 'YYYY-MM-DD': {open_time,close_time,is_closed} }
+
+    /* auth + profile */
     {
       const s = await supabase.auth.getSession()
       session = s.data.session
-      if (!session?.user) {
-        managePanel.style.display = 'none'
-      } else {
+      if (!session?.user) managePanel.style.display='none'
+      else {
         userId = session.user.id
         const { data: prof } = await supabase.from('profiles').select('is_admin,is_lender').eq('id', userId).single()
         isAdmin = !!prof?.is_admin; isLender = !!prof?.is_lender
@@ -433,634 +460,741 @@
 
     function daysInMonth(date){ return new Date(date.getFullYear(), date.getMonth()+1, 0).getDate() }
     function iso(y,m,d){ return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}` }
+    function ownedIds(){ return (myListings||[]).map(l=>l.id) }
 
-    function getOwnedListingIds() {
-      return (myListings || []).map(l => l.id)
+    /* ===== HOURS HELPERS ===== */
+    function makeTimeOptions(sel){
+      sel.innerHTML=''
+      const o24=document.createElement('option'); o24.value='24h'; o24.textContent='24 hours'
+      sel.appendChild(o24)
+      for(let h=0; h<24; h++){
+        for(let m=0; m<60; m+=30){
+          const HH=pad2(h), MM=pad2(m)
+          const opt=document.createElement('option')
+          opt.value=`${HH}:${MM}`; opt.textContent=timeHuman(`${HH}:${MM}`)
+          sel.appendChild(opt)
+        }
+      }
+    }
+    makeTimeOptions(wkOpen); makeTimeOptions(wkClose); makeTimeOptions(ovOpen); makeTimeOptions(ovClose)
+
+    function defaultWeekly(){
+      const obj={}
+      for(let i=0;i<7;i++) obj[i]={open:'09:00', close:'17:00', closed:false}
+      return obj
+    }
+    function weeklyLabel(dow){
+      const h=weeklyHours?.[dow]
+      if(!h) return '—'
+      if(h.closed) return 'Closed'
+      if(h.open==='24h' || h.close==='24h' || (h.open==='00:00'&&h.close==='23:59')) return '24 hours'
+      return `${timeHuman(h.open)} – ${timeHuman(h.close)}`
+    }
+    function renderDow(){
+      gridDow.innerHTML=''
+      for(let i=0;i<7;i++){
+        const el=document.createElement('div'); el.className='dow';
+        el.innerHTML = `${DOW[i]}<span class="hrs">${weeklyLabel(i)}</span>`
+        gridDow.appendChild(el)
+      }
     }
 
-    async function loadMonthData() {
-      const y = view.getFullYear(), m = view.getMonth()
-      const startISO = iso(y,m,1)
-      const endISO   = iso(y,m,daysInMonth(view))
+    /* 7-wide compact day buttons */
+    function buildDowCheckboxes(){
+      wkDOW.innerHTML=''
+      const short=['S','M','T','W','Th','F','Sa']
+      for(let i=0;i<7;i++){
+        const cell=document.createElement('div'); cell.className='cell'
+        cell.innerHTML = `<div class="lbl">${short[i]}</div><input type="checkbox" data-dow="${i}">`
+        wkDOW.appendChild(cell)
+      }
+    }
+    buildDowCheckboxes()
 
-      if (userId) {
-        const baseSelect = 'id, listing_id, start_date, end_date, start_time, end_time, status, requires_delivery, listings!inner(title, owner_id)'
-        const { data: rent } = await supabase
-          .from('reservations')
-          .select(baseSelect)
-          .eq('renter_id', userId)
-          .lte('start_date', endISO).gte('end_date', startISO)
-
-        myRentals = (rent||[])
-          .filter(r => !r.status || r.status.toLowerCase() !== 'cancelled')
-          .map(r => ({ ...r, start_date_iso: r.start_date?.slice(0,10), end_date_iso: r.end_date?.slice(0,10) }))
-
-        const { data: lend } = await supabase
-          .from('reservations')
-          .select(baseSelect)
-          .eq('listings.owner_id', userId)
-          .lte('start_date', endISO).gte('end_date', startISO)
-
-        myLending = (lend||[])
-          .filter(r => !r.status || r.status.toLowerCase() !== 'cancelled')
-          .map(r => ({ ...r, start_date_iso: r.start_date?.slice(0,10), end_date_iso: r.end_date?.slice(0,10) }))
-
-        // optional focus to one listing
-        if (focusListingId) {
-          myRentals = myRentals.filter(r => r.listing_id === focusListingId)
-          myLending = myLending.filter(r => r.listing_id === focusListingId)
+    /* Pair selects; selecting 24h on either forces both; unselecting removes 24h (weekly). For overrides, checkbox can also toggle. */
+    function wire24Pair(selA, selB, chk){
+      const sync = ()=>{
+        if(selA.value==='24h' || selB.value==='24h'){
+          selA.value='24h'; selB.value='24h'
+          if(chk){ chk.checked=true; selA.disabled=true; selB.disabled=true }
+        }else{
+          if(chk){ chk.checked=false; selA.disabled=false; selB.disabled=false }
         }
+      }
+      selA.addEventListener('change', sync)
+      selB.addEventListener('change', sync)
+      if(chk){
+        chk.addEventListener('change', ()=>{
+          if(chk.checked){ selA.value='24h'; selB.value='24h'; selA.disabled=true; selB.disabled=true }
+          else { selA.disabled=false; selB.disabled=false; if(selA.value==='24h') selA.value='09:00'; if(selB.value==='24h') selB.value='17:00' }
+        })
+      }
+      sync()
+    }
+    wire24Pair(wkOpen, wkClose)         // weekly open/close
+    wire24Pair(ovOpen, ovClose, ov247)  // override open/close + 24h checkbox
 
-        if (isLender || isAdmin) {
-          const { data: listings } = await supabase
-            .from('listings').select('id,title,owner_id')
-            .eq('owner_id', userId).order('title')
-          myListings = listings || []
-        } else {
-          myListings = []
+    async function loadWeeklyHours(){
+      try{
+        const { data } = await supabase.from('shop_hours_weekly').select('*').eq('owner_id', userId).single()
+        if(!data){ weeklyHours=defaultWeekly() }
+        else{
+          weeklyHours = {
+            0:{open:data.sun_open||'09:00', close:data.sun_close||'17:00', closed: !!data.sun_closed},
+            1:{open:data.mon_open||'09:00', close:data.mon_close||'17:00', closed: !!data.mon_closed},
+            2:{open:data.tue_open||'09:00', close:data.tue_close||'17:00', closed: !!data.tue_closed},
+            3:{open:data.wed_open||'09:00', close:data.wed_close||'17:00', closed: !!data.wed_closed},
+            4:{open:data.thu_open||'09:00', close:data.thu_close||'17:00', closed: !!data.thu_closed},
+            5:{open:data.fri_open||'09:00', close:data.fri_close||'17:00', closed: !!data.fri_closed},
+            6:{open:data.sat_open||'10:00', close:data.sat_close||'16:00', closed: !!data.sat_closed},
+          }
         }
+        renderDow()
+      }catch{
+        weeklyHours=null
+        banner.textContent='Heads-up: shop_hours_weekly table not found. Weekly hours UI will be disabled until you create it.'
+        banner.style.display='block'
+      }
+    }
 
-        try {
-          const ids = getOwnedListingIds();
-          if (ids.length) {
-            const { data: blk, error } = await supabase
-              .from('listing_blackouts_daily')
-              .select('listing_id,date,kind')
-              .in('listing_id', ids)
-              .gte('date', startISO)
-              .lte('date', endISO)
-              .order('date');
-            if (error) console.error(error);
-            blackouts = blk || []
-          } else blackouts = []
-          banner.style.display = 'none'
-        } catch {
-          blackouts = []
-          banner.textContent = 'Heads-up: listing_blackouts_daily view not found. Calendar works, but blackout dots won’t show until you add it.'
-          banner.style.display = 'block'
-        }
+    function hoursForDate(dISO){
+      const ov = overridesByISO[dISO]
+      if(ov){
+        if(ov.is_closed) return {label:'Closed', custom:true, open:null, close:null}
+        if(ov.open_time==='00:00' && ov.close_time==='23:59') return {label:'24 hours', custom:true, open:'00:00', close:'23:59'}
+        return {label:`${timeHuman(ov.open_time)} – ${timeHuman(ov.close_time)}`, custom:true, open:ov.open_time, close:ov.close_time}
+      }
+      const d=parseLocal(dISO).getDay()
+      const h=weeklyHours?.[d]
+      if(!h) return {label:'—', custom:false}
+      if(h.closed) return {label:'Closed', custom:false}
+      if(h.open==='24h' || h.close==='24h' || (h.open==='00:00'&&h.close==='23:59')) return {label:'24 hours', custom:false, open:'00:00', close:'23:59'}
+      return {label:`${timeHuman(h.open)} – ${timeHuman(h.close)}`, custom:false, open:h.open, close:h.close}
+    }
 
-        try {
-          const ids2 = getOwnedListingIds()
-          if (ids2.length) {
-            const { data: promos, error: pErr } = await supabase
-              .from('listing_promotions')
-              .select('id,listing_id,start_date,end_date,kind,tier1_value,tier2_value')
-              .in('listing_id', ids2)
-              .lte('start_date', endISO)
-              .gte('end_date', startISO)
-              .order('start_date')
-            if (pErr) console.error(pErr)
-            promotions = promos || []
-          } else promotions = []
-        } catch (e) {
-          console.warn('Promo fetch failed (ok if table not present):', e)
-          promotions = []
-        }
-      } else {
-        myRentals = []; myLending = []; myListings = []; blackouts = []; promotions = []
+    /* data load for the visible month */
+    async function loadMonthData(){
+      const y=view.getFullYear(), m=view.getMonth()
+      const startISO=iso(y,m,1), endISO=iso(y,m,daysInMonth(view))
+
+      if (!userId) { myRentals=[]; myLending=[]; myListings=[]; blackouts=[]; promotions=[]; return }
+
+      const { data: rent } = await supabase
+        .from('reservations')
+        .select('id, listing_id, start_date, end_date, start_time, end_time, status, requires_delivery, renter_id, listings!inner(title, owner_id)')
+        .eq('renter_id', userId)
+        .lte('start_date', endISO).gte('end_date', startISO)
+
+      myRentals = (rent||[])
+        .filter(r => !r.status || r.status.toLowerCase() !== 'cancelled')
+        .map(r => ({ ...r, start_date_iso:r.start_date?.slice(0,10), end_date_iso:r.end_date?.slice(0,10), requires_delivery: !!r.requires_delivery }))
+
+      const { data: lend } = await supabase
+        .from('reservations')
+        .select('id, listing_id, start_date, end_date, start_time, end_time, status, requires_delivery, renter_id, listings!inner(title, owner_id)')
+        .eq('listings.owner_id', userId)
+        .lte('start_date', endISO).gte('end_date', startISO)
+
+      myLending = (lend||[])
+        .filter(r => !r.status || r.status.toLowerCase() !== 'cancelled')
+        .map(r => ({ ...r, start_date_iso:r.start_date?.slice(0,10), end_date_iso:r.end_date?.slice(0,10), requires_delivery: !!r.requires_delivery }))
+
+      if (isLender || isAdmin) {
+        const { data: listings } = await supabase.from('listings').select('id,title,owner_id').eq('owner_id', userId).order('title')
+        myListings = listings || []
+      } else myListings=[]
+
+      try{
+        const ids=ownedIds()
+        if(ids.length){
+          const { data: blk } = await supabase
+            .from('listing_blackouts_daily')
+            .select('listing_id,date,kind')
+            .in('listing_id', ids)
+            .gte('date', startISO).lte('date', endISO).order('date')
+          blackouts = blk || []
+        } else blackouts=[]
+        banner.style.display='none'
+      }catch{
+        blackouts=[]
+        banner.textContent='Heads-up: listing_blackouts_daily view not found.'
+        banner.style.display='block'
+      }
+
+      try{
+        const ids=ownedIds()
+        if(ids.length){
+          const { data: promos } = await supabase
+            .from('listing_promotions')
+            .select('id,listing_id,start_date,end_date,kind,tier1_value,tier2_value')
+            .in('listing_id', ids)
+            .lte('start_date', endISO).gte('end_date', startISO).order('start_date')
+          promotions = promos || []
+        } else promotions=[]
+      }catch{ promotions=[] }
+
+      // hours
+      if(isLender || isAdmin){
+        await loadWeeklyHours()
+        overridesByISO={}
+        try{
+          const { data } = await supabase.from('shop_hours_overrides')
+            .select('date,open_time,close_time,is_closed').eq('owner_id', userId)
+            .gte('date', startISO).lte('date', endISO)
+          for(const r of (data||[])) overridesByISO[r.date]=r
+        }catch{}
+      }else{
+        await loadWeeklyHours()
+        overridesByISO={}
       }
     }
 
     function seedYearSelect(){
-      const now = new Date()
-      const y0 = now.getFullYear() - 2
-      const y1 = now.getFullYear() + 5
-      const frag = document.createDocumentFragment()
-      for (let y=y0; y<=y1; y++){
-        const opt = document.createElement('option'); opt.value = String(y); opt.textContent = y
-        frag.appendChild(opt)
-      }
-      jumpYear.innerHTML = ''; jumpYear.appendChild(frag)
+      const now = new Date(), y0=now.getFullYear()-2, y1=now.getFullYear()+5
+      const f = document.createDocumentFragment()
+      for(let y=y0;y<=y1;y++){ const o=document.createElement('option'); o.value=String(y); o.textContent=y; f.appendChild(o) }
+      jumpYear.innerHTML=''; jumpYear.appendChild(f)
     }
+    function syncJumpControls(){ jumpMonth.value=String(view.getMonth()); jumpYear.value=String(view.getFullYear()) }
 
-    function syncJumpControls(){
-      jumpMonth.value = String(view.getMonth())
-      jumpYear.value  = String(view.getFullYear())
-    }
-
-    function buildRunSegments(daySet, monthStartISO, monthEndISO){
-      // returns map date -> {class,label}
-      const days=[]
-      for (let d=parseLocal(monthStartISO); d<=parseLocal(monthEndISO); d=addDays(d,1)){
-        const isoS = toLocalISO(d)
-        if (daySet.has(isoS)) days.push(isoS)
-      }
-      const segByDate = {}
-      if (!days.length) return segByDate
-      // group consecutive
-      let run=[days[0]]
-      for (let i=1;i<days.length;i++){
-        const prev = parseLocal(days[i-1]), cur = parseLocal(days[i])
-        if ((cur - prev)/(1000*60*60*24) === 1){ run.push(days[i]); continue }
-        stampRun(run, segByDate); run=[days[i]]
-      }
-      stampRun(run, segByDate)
-      return segByDate
-
-      function stampRun(arr, out){
-        const L = arr.length, mid = Math.floor((L-1)/2)
-        for (let i=0;i<L;i++){
-          let klass='run-mid'
-          if (L===1) klass='run-solo'
-          else if (i===0) klass='run-start'
-          else if (i===L-1) klass='run-end'
-          out[arr[i]] = { class:klass, labelIndex: i===mid }
+    /* helpers to build row-spanning runs for overlay layer */
+    const weekCount = (firstDow,total)=> Math.ceil((firstDow + total)/7)
+    function buildRuns(flagByISO, firstDow, total, y, m, labelForDay){
+      const runs=[]
+      const weeks=weekCount(firstDow,total)
+      for(let r=0;r<weeks;r++){
+        let c=0
+        while(c<7){
+          const di = r*7 + c - firstDow + 1
+          const on = di>=1 && di<=total && !!flagByISO[iso(y,m,di)]
+          if(!on){ c++; continue }
+          let startCol=c+1
+          const dISOs=[]
+          while(c<7){
+            const di2 = r*7 + c - firstDow + 1
+            const on2 = di2>=1 && di2<=total && !!flagByISO[iso(y,m,di2)]
+            if(!on2) break
+            dISOs.push(iso(y,m,di2))
+            c++
+          }
+          const len = dISOs.length
+          const midISO = dISOs[Math.floor((len-1)/2)]
+          runs.push({ row:r+1, col:startCol, span:len, label: labelForDay?labelForDay(midISO):'' })
         }
       }
+      return runs
     }
 
-    function render() {
+    function render(){
       const y=view.getFullYear(), m=view.getMonth()
       title.textContent = `${view.toLocaleString(undefined,{month:'long'})} ${y}`
       syncJumpControls()
+      renderDow()
+      gridDays.innerHTML=''
 
-      gridDays.innerHTML = ''
-
-      const firstDow = new Date(y,m,1).getDay()
+      const firstDow=new Date(y,m,1).getDay()
       const total = daysInMonth(view)
+      for(let i=0;i<firstDow;i++){ const pad=document.createElement('div'); pad.className='day past'; gridDays.appendChild(pad) }
 
-      // pad
-      for (let i=0;i<firstDow;i++){
-        const pad = document.createElement('div'); pad.className='day past'; gridDays.appendChild(pad)
-      }
+      /* blackout flags */
+      const ownerByISO={}, storeByISO={}
+      for(const b of blackouts){ if(b.kind==='owner_unavailable') ownerByISO[b.date]=true; if(b.kind==='store_blocked') storeByISO[b.date]=true }
 
-      // aggregate blackouts by kind into day sets (shop-wide view)
-      const ownerDays = new Set(), storeDays = new Set()
-      for (const b of blackouts) {
-        if (b.kind === 'owner_unavailable') ownerDays.add(b.date)
-        if (b.kind === 'store_blocked') storeDays.add(b.date)
-      }
-      const monthStartISO = iso(y,m,1), monthEndISO = iso(y,m,total)
-      const ownerSeg = buildRunSegments(ownerDays, monthStartISO, monthEndISO)
-      const storeSeg = buildRunSegments(storeDays, monthStartISO, monthEndISO)
-
-      // precompute promos per day with run classes and a centered label
-      const promoSegByDate = {}
-      {
-        for (const p of promotions){
-          const ps = p.start_date.slice(0,10)
-          const pe = p.end_date.slice(0,10)
-          const start = parseLocal(ps) < parseLocal(monthStartISO) ? parseLocal(monthStartISO) : parseLocal(ps)
-          const end   = parseLocal(pe) > parseLocal(monthEndISO)   ? parseLocal(monthEndISO)   : parseLocal(pe)
-          if (end < start) continue
-          const days=[]
-          for (let d=new Date(start); d<=end; d=addDays(d,1)) days.push(toLocalISO(d))
-          const L = days.length, midIdx = Math.floor((L-1)/2)
-          const label = p.kind==='percent' ? `${p.tier1_value ?? ''}% off` : `$${p.tier1_value ?? ''} off`
-          for (let i=0;i<L;i++){
-            const dISO = days[i]
-            if (promoSegByDate[dISO]) continue
-            let klass = 'promo-run-mid'
-            if (L===1) klass='promo-run-solo'
-            else if (i===0) klass='promo-run-start'
-            else if (i===L-1) klass='promo-run-end'
-            promoSegByDate[dISO] = { class: klass, label: i===midIdx ? label : '' }
+      /* promo flags and labels (month slice) */
+      const promoByISO={}, promoLabelByISO={}
+      for(const p of promotions){
+        const ps=parseLocal(p.start_date.slice(0,10)), pe=parseLocal(p.end_date.slice(0,10))
+        for(let d=1; d<=total; d++){
+          const dISO=iso(y,m,d), dd=parseLocal(dISO)
+          if(dd>=ps && dd<=pe){
+            promoByISO[dISO]=true
+            if(!promoLabelByISO[dISO]){
+              const t1 = p.tier1_value!=null ? p.tier1_value : ''
+              promoLabelByISO[dISO] = p.kind==='percent' ? (t1?`${t1}% off`:'Promotion') : (t1?`$${t1} off`:'Promotion')
+            }
           }
         }
       }
 
-      const today = new Date(); today.setHours(0,0,0,0)
-      const todayISO = toLocalISO(today)
+      /* build overlay runs (owner/store obey filters) */
+      const ownerRuns = filters.owner ? buildRuns(ownerByISO, firstDow, total, y, m, ()=> 'Owner unavailable') : []
+      const storeRuns = filters.store ? buildRuns(storeByISO, firstDow, total, y, m, ()=> 'Store blocked') : []
+      const promoRuns = buildRuns(promoByISO, firstDow, total, y, m, dISO => promoLabelByISO[dISO] || 'Promotion')
 
-      for (let day=1; day<=total; day++){
-        const dISO = iso(y,m,day)
-        const cell = document.createElement('div'); cell.className='day'; cell.dataset.date=dISO
+      /* aggregate counts for chips (split pending lender vs renter) */
+      const countsByISO = {}
+      const ensure = dISO => {
+        if(!countsByISO[dISO]) countsByISO[dISO]={
+          lend:{ start:{home:0,truck:0}, end:{home:0,truck:0}, pending:{ start:{home:0,truck:0}, end:{home:0,truck:0} } },
+          rent:{ start:{home:0,truck:0}, end:{home:0,truck:0}, pending:{ start:{home:0,truck:0}, end:{home:0,truck:0} } }
+        }
+      }
+      const bump = (dISO, role, state, edge, deliv) => { ensure(dISO); const tgt=(state==='pending'?countsByISO[dISO][role].pending[edge]:countsByISO[dISO][role][edge]); if(deliv) tgt.truck++; else tgt.home++; }
+      const addCounts = (rows, role) => {
+        for(const r of rows){
+          const pend = (r.status||'').toLowerCase()==='pending'
+          const deliv = !!r.requires_delivery
+          if(r.start_date_iso) bump(r.start_date_iso, role, pend?'pending':'ok', 'start', deliv)
+          if(r.end_date_iso)   bump(r.end_date_iso,   role, pend?'pending':'ok', 'end',   deliv)
+        }
+      }
+      addCounts(myLending,'lend'); addCounts(myRentals,'rent')
 
-        const thisDay = new Date(y,m,day); thisDay.setHours(0,0,0,0)
-        if (thisDay < today) cell.classList.add('past')
-        if (dISO === todayISO) cell.classList.add('today')
-        if (selection.has(dISO)) cell.classList.add('sel')
+      const today=new Date(); today.setHours(0,0,0,0); const todayISO=toLocalISO(today)
+      const iconHome='🏠', iconTruck='🚚'
+      const makeChip = (cls, label) => { const c=document.createElement('div'); c.className='chip '+cls; c.textContent=label; return c }
 
-        const dateEl = document.createElement('div'); dateEl.className='date'; dateEl.textContent = day
+      for(let day=1; day<=total; day++){
+        const dISO=iso(y,m,day)
+        const cell=document.createElement('div'); cell.className='day'; cell.dataset.date=dISO
+        const thisDay=new Date(y,m,day); thisDay.setHours(0,0,0,0)
+        if(thisDay < today) cell.classList.add('past')
+        if(dISO===todayISO) cell.classList.add('today')
+        if(selection.has(dISO)) cell.classList.add('sel')
+
+        const dateEl=document.createElement('div'); dateEl.className='date'; dateEl.textContent=day
         cell.appendChild(dateEl)
 
-        /* ---------- lender summary counts per day ---------- */
-        const chips = document.createElement('div'); chips.className='chips'
-        if (filters.lend){
-          const lendStart = myLending.filter(r => r.start_date_iso===dISO)
-          const lendEnd   = myLending.filter(r => r.end_date_iso===dISO)
+        /* custom-hours clock icon */
+        if(overridesByISO[dISO]){ const ico=document.createElement('div'); ico.className='clock-ico'; ico.textContent='🕒'; cell.appendChild(ico) }
 
-          const toDeliver = lendStart.filter(r => !!r.requires_delivery).length
-          const toHandoff = lendStart.length - toDeliver
+        /* chips */
+        const chips=document.createElement('div'); chips.className='chips'
+        const cc = countsByISO[dISO] || null
+        let shown=0, maxShow=4
+        const push = (cls,label,home,truck) => {
+          if(!home && !truck) return
+          if(shown>=maxShow) return
+          const parts=[]
+          if(truck) parts.push(`${iconTruck}×${truck}`)
+          if(home)  parts.push(`${iconHome}×${home}`)
+          chips.appendChild(makeChip(cls, `${label} ${parts.join(' ')}`))
+          shown++
+        }
 
-          const rtnPickup = lendEnd.filter(r => !!r.requires_delivery).length   // we must pick up from renter
-          const rtnAtShop = lendEnd.length - rtnPickup                          // they return to us
-
-          const addSum = (n, css, text) => {
-            if (!n) return
-            const chip = document.createElement('div')
-            chip.className = `chip chip-sum ${css}`
-            chip.textContent = n === 1 ? `1 ${text}` : `${n} ${text}s`
-            chips.appendChild(chip)
+        if(cc){
+          if(filters.lend){
+            push('chip-lend-start','Res. start', cc.lend.start.home, cc.lend.start.truck)
+            push('chip-lend-end','Res. end',     cc.lend.end.home,   cc.lend.end.truck)
           }
-          addSum(toDeliver, 'l-deliver', 'to deliver')
-          addSum(toHandoff, 'l-handoff', 'handoff')
-          addSum(rtnPickup, 'l-rtn-pu', 'return pickup')
-          addSum(rtnAtShop, 'l-rtn-due', 'return due')
-        }
-
-        /* ---------- renter edge summaries (compact) ---------- */
-        if (filters.rent){
-          const rentStart = myRentals.filter(r => r.start_date_iso===dISO).length
-          const rentEnd   = myRentals.filter(r => r.end_date_iso===dISO).length
-          const mk = (n, klass, word) => {
-            if (!n) return
-            const c = document.createElement('div'); c.className = `chip ${klass}`
-            c.textContent = n === 1 ? `Your ${word}` : `Your ${word}s (${n})`
-            chips.appendChild(c)
+          if(filters.rent){
+            push('chip-rent-start','Your start', cc.rent.start.home, cc.rent.start.truck)
+            push('chip-rent-end','Your end',     cc.rent.end.home,   cc.rent.end.truck)
           }
-          mk(rentStart, 'chip-rent-start', 'pickup')
-          mk(rentEnd,   'chip-rent-end',   'return')
+          if(filters.pending && filters.lend){
+            push('chip-pend-lend-start','Pending start', cc.lend.pending.start.home, cc.lend.pending.start.truck)
+            push('chip-pend-lend-end','Pending end',     cc.lend.pending.end.home,   cc.lend.pending.end.truck)
+          }
+          if(filters.pending && filters.rent){
+            push('chip-pend-rent-start','Pending start', cc.rent.pending.start.home, cc.rent.pending.start.truck)
+            push('chip-pend-rent-end','Pending end',     cc.rent.pending.end.home,   cc.rent.pending.end.truck)
+          }
         }
 
-        /* ---------- blackout bars (connected runs with centered label) ---------- */
-        const os = ownerSeg[dISO], ss = storeSeg[dISO]
-        if (filters.owner && os){
-          const lane = document.createElement('div'); lane.className='blk-lane'
-          const strip = document.createElement('div'); strip.className=`blk-strip blk-owner ${os.class}`
-          if (os.labelIndex){ strip.innerHTML = `<div class="bar-label">Owner unavailable</div>` }
-          lane.appendChild(strip); cell.appendChild(lane)
-        }
-        if (filters.store && ss){
-          const lane = document.createElement('div'); lane.className='blk-lane'
-          lane.style.top = '40px' // second lane below owner-unavailable
-          const strip = document.createElement('div'); strip.className=`blk-strip blk-store ${ss.class}`
-          if (ss.labelIndex){ strip.innerHTML = `<div class="bar-label">Store blocked</div>` }
-          lane.appendChild(strip); cell.appendChild(lane)
-        }
-
-        /* ---------- promo lane ---------- */
-        const seg = promoSegByDate[dISO]
-        if (seg){
-          const lane = document.createElement('div'); lane.className='promo-lane'
-          const strip = document.createElement('div'); strip.className='promo-strip ' + seg.class
-          if (seg.label) strip.innerHTML = `<div class="promo-label">${seg.label}</div>`
-          lane.appendChild(strip); cell.appendChild(lane)
-        }
-
+        if(shown>=maxShow) chips.appendChild(makeChip('chip-more','+ more'))
         cell.appendChild(chips)
         gridDays.appendChild(cell)
       }
 
-      updateAgenda()
-    }
+      /* ===== overlay layer ===== */
+      bandLayer.innerHTML=''
+      const weeks = weekCount(firstDow,total)
+      const dowH = gridDow.offsetHeight || 0
+      const dayH = gridDays.querySelector('.day')?.getBoundingClientRect().height || 110
+      bandLayer.style.top = dowH + 'px'
+      bandLayer.style.gridTemplateRows = `repeat(${weeks}, ${dayH}px)`
 
-    // selection (owners/admin only)
-    gridDays.addEventListener('click', (e)=>{
-      const cell = e.target.closest('.day'); if (!cell) return
-      const d = cell.dataset.date; if (!d) return
-      if (!(isLender || isAdmin)) return
-      if (selection.has(d)) { selection.delete(d); cell.classList.remove('sel') }
-      else { selection.add(d); cell.classList.add('sel') }
-      updateAgenda()
-    })
-    $('#btn-clear').addEventListener('click', ()=>{
-      selection.clear()
-      gridDays.querySelectorAll('.day.sel').forEach(el=>el.classList.remove('sel'))
-      updateAgenda()
-    })
-
-    /* agenda helpers */
-    function isConsecutive(sortedISO) {
-      for (let i=1;i<sortedISO.length;i++){
-        const prev = parseLocal(sortedISO[i-1])
-        const cur  = parseLocal(sortedISO[i])
-        const diff = (cur - prev) / (1000*60*60*24)
-        if (diff !== 1) return false
+      function addBands(runs, klass){
+        for(const r of runs){
+          const el=document.createElement('div')
+          el.className = `band ${klass}`
+          el.style.gridRow = String(r.row)
+          el.style.gridColumn = `${r.col} / span ${r.span}`
+          const pill=document.createElement('div'); pill.className='pill'; pill.textContent=r.label||''
+          el.appendChild(pill)
+          bandLayer.appendChild(el)
+        }
       }
-      return true
+      if(filters.owner) addBands(ownerRuns,'owner')
+      if(filters.store) addBands(storeRuns,'store')
+      addBands(promoRuns,'promo')
+
+      updateAgenda()
+      updatePendingCount()
     }
-    function datesForPeekWeek() {
-      const t = new Date(); t.setHours(0,0,0,0)
-      const arr = []
-      for (let i=0;i<7;i++) arr.push(toLocalISO(addDays(t,i)))
-      return arr
-    }
-    function expandRange(a,b){
-      const out=[]
-      for (let d=parseLocal(a); d<=parseLocal(b); d=addDays(d,1)) out.push(toLocalISO(d))
-      return out
-    }
+
+    /* selection */
+    gridDays.addEventListener('click', (e)=>{
+      const cell = e.target.closest('.day'); if(!cell) return
+      const d = cell.dataset.date; if(!d) return
+      if(isLender || isAdmin){
+        if(selection.has(d)) { selection.delete(d); cell.classList.remove('sel') }
+        else { selection.add(d); cell.classList.add('sel') }
+      }else{
+        selection.clear(); gridDays.querySelectorAll('.day.sel').forEach(el=>el.classList.remove('sel'))
+        selection.add(d); cell.classList.add('sel')
+      }
+      updateAgenda()
+    })
+    $('#btn-clear').addEventListener('click', ()=>{ selection.clear(); gridDays.querySelectorAll('.day.sel').forEach(el=>el.classList.remove('sel')); updateAgenda() })
+
+    /* agenda (actions + conflicts; show HOURS ONLY when custom) */
+    function isConsecutive(sortedISO){ for(let i=1;i<sortedISO.length;i++){ const prev=parseLocal(sortedISO[i-1]); const cur=parseLocal(sortedISO[i]); if((cur-prev)/(1000*60*60*24)!==1)return false } return true }
+    function datesForPeekWeek(){ const t=new Date(); t.setHours(0,0,0,0); const a=[]; for(let i=0;i<7;i++) a.push(toLocalISO(addDays(t,i))); return a }
+    function expandRange(a,b){ const out=[]; for(let d=parseLocal(a); d<=parseLocal(b); d=addDays(d,1)) out.push(toLocalISO(d)); return out }
 
     function updateAgenda(){
       let selected = Array.from(selection).sort()
       let dates, heading, subline
 
-      if (!selected.length){
-        dates = datesForPeekWeek()
-        heading = 'A peek at the week'
-        subline = `${fmtHuman(dates[0])} → ${fmtHuman(dates[dates.length-1])}`
-      } else if (selected.length === 1){
-        dates = selected
-        heading = `Now viewing ${fmtHuman(selected[0])}`
-        subline = ''
-      } else {
-        if (isConsecutive(selected)) {
-          dates = expandRange(selected[0], selected[selected.length-1])
-          heading = `Now viewing ${fmtHuman(selected[0])} → ${fmtHuman(selected[selected.length-1])}`
-          subline = ''
-        } else {
-          dates = selected
-          heading = 'Multiple non-consecutive dates selected'
-          subline = `Dates: ${selected.map(fmtHuman).join(', ')}`
+      if (!selected.length){ dates=datesForPeekWeek(); heading='A peek at the week'; subline=`${fmtHuman(dates[0])} → ${fmtHuman(dates[dates.length-1])}` }
+      else if (selected.length===1){ dates=selected; heading=`Now viewing ${fmtHuman(selected[0])}`; subline='' }
+      else { if(isConsecutive(selected)){ dates=expandRange(selected[0], selected[selected.length-1]); heading=`Now viewing ${fmtHuman(selected[0])} → ${fmtHuman(selected[selected.length-1])}`; subline='' } else { dates=selected; heading='Multiple non-consecutive dates selected'; subline=`Dates: ${selected.map(fmtHuman).join(', ')}` } }
+
+      agendaTitle.textContent=heading
+      agendaSub.textContent=subline
+      agendaList.innerHTML=''
+
+      const add = (txt, conflict=false) => { const li=document.createElement('li'); li.textContent=txt; if(conflict) li.classList.add('agenda-conflict'); agendaList.appendChild(li) }
+
+      for(const dISO of dates){
+        // Show hours ONLY if there is a custom override
+        if(overridesByISO[dISO]){
+          const hrs = hoursForDate(dISO)
+          add(`Hours • ${hrs.label} (custom)`)
         }
-      }
 
-      agendaTitle.textContent = heading
-      agendaSub.textContent = subline
-      agendaList.innerHTML = ''
-
-      const add = (txt) => { const li=document.createElement('li'); li.textContent=txt; agendaList.appendChild(li) }
-
-      for (const dISO of dates){
-        if (filters.rent){
-          for (const r of myRentals) {
-            if (sameDay(r.start_date_iso, dISO)) {
-              const t = timeHuman(r.start_time)
-              add(`Your rental • ${r.listings?.title || `Listing #${r.listing_id}`} (pickup${t?` at ${t}`:''}) • ${fmtHuman(dISO)}`)
-            }
-            if (sameDay(r.end_date_iso, dISO)) {
-              const t = timeHuman(r.end_time)
-              add(`Your rental • ${r.listings?.title || `Listing #${r.listing_id}`} (return${t?` at ${t}`:''}) • ${fmtHuman(dISO)}`)
-            }
+        if(filters.rent){
+          for(const r of myRentals){
+            const s=(r.status||'').toLowerCase()
+            if(s==='pending' && !filters.pending) continue
+            if(s==='pending') continue
+            if(sameDay(r.start_date_iso,dISO)) add(`Your rental • Reservation start • ${r.listings?.title || `Listing #${r.listing_id}`}${r.start_time?` • ${timeHuman(r.start_time)}`:''}`)
+            if(sameDay(r.end_date_iso,dISO))   add(`Your rental • Reservation end • ${r.listings?.title || `Listing #${r.listing_id}`}${r.end_time?` • ${timeHuman(r.end_time)}`:''}`)
+          }
+        }
+        if(filters.pending && filters.rent){
+          for(const r of myRentals){ const s=(r.status||'').toLowerCase(); if(s!=='pending') continue;
+            if(sameDay(r.start_date_iso,dISO)) add(`Your rental • Pending start • ${r.listings?.title || `Listing #${r.listing_id}`}`)
+            if(sameDay(r.end_date_iso,dISO))   add(`Your rental • Pending end • ${r.listings?.title || `Listing #${r.listing_id}`}`)
           }
         }
 
-        if (filters.lend){
-          for (const r of myLending) {
-            if (sameDay(r.start_date_iso, dISO)) {
-              const t = timeHuman(r.start_time)
-              add(`Lender obligation • ${r.listings?.title || `Listing #${r.listing_id}`} (${r.requires_delivery ? 'deliver' : 'handoff'}${t?` at ${t}`:''}) • ${fmtHuman(dISO)}`)
-            }
-            if (sameDay(r.end_date_iso, dISO)) {
-              const t = timeHuman(r.end_time)
-              add(`Lender obligation • ${r.listings?.title || `Listing #${r.listing_id}`} (${r.requires_delivery ? 'pick up return' : 'receive return'}${t?` at ${t}`:''}) • ${fmtHuman(dISO)}`)
+        if(filters.lend){
+          for(const r of myLending){
+            const s=(r.status||'').toLowerCase()
+            if(s==='pending' && !filters.pending) continue
+            if(s!=='pending'){
+              if(sameDay(r.start_date_iso,dISO)) add(`Your listing • Reservation start • ${r.listings?.title || `Listing #${r.listing_id}`}${r.start_time?` • ${timeHuman(r.start_time)}`:''}`)
+              if(sameDay(r.end_date_iso,dISO))   add(`Your listing • Reservation end • ${r.listings?.title || `Listing #${r.listing_id}`}${r.end_time?` • ${timeHuman(r.end_time)}`:''}`)
             }
           }
         }
+        if(filters.pending && filters.lend){
+          for(const r of myLending){ const s=(r.status||'').toLowerCase(); if(s!=='pending') continue;
+            if(sameDay(r.start_date_iso,dISO)) add(`Your listing • Pending start • ${r.listings?.title || `Listing #${r.listing_id}`}`)
+            if(sameDay(r.end_date_iso,dISO))   add(`Your listing • Pending end • ${r.listings?.title || `Listing #${r.listing_id}`}`)
+          }
+        }
 
-        const ownerOn = blackouts.some(b => b.date===dISO && b.kind==='owner_unavailable')
-        const storeOn = blackouts.some(b => b.date===dISO && b.kind==='store_blocked')
-        if (ownerOn && filters.owner) add(`Owner unavailable • ${fmtHuman(dISO)}`)
-        if (storeOn && filters.store)  add(`Store blocked • ${fmtHuman(dISO)}`)
+        /* conflicts */
+        const ownedBlk = blackouts.filter(b => b.date===dISO)
+        const hasOwnerUnavail = ownedBlk.some(b => b.kind==='owner_unavailable')
+        const hasStoreBlock   = ownedBlk.some(b => b.kind==='store_blocked')
 
-        for (const p of promotions) {
-          const dd = parseLocal(dISO), ps = parseLocal(p.start_date), pe = parseLocal(p.end_date)
-          if (dd >= ps && dd <= pe) {
-            const label = p.kind==='percent' ? `${p.tier1_value ?? ''}% off` : `$${p.tier1_value ?? ''} off`
-            add(`Promotion active • ${label} • ${fmtHuman(dISO)}`)
+        if(hasOwnerUnavail){
+          for(const r of myLending){
+            if(sameDay(r.start_date_iso,dISO) || sameDay(r.end_date_iso,dISO)){
+              add(`Conflict • Owner unavailable with reservation ${sameDay(r.start_date_iso,dISO)?'start':'end'} • ${r.listings?.title || `Listing #${r.listing_id}`}`, true)
+            }
+          }
+        }
+        if(hasStoreBlock){
+          for(const r of myLending){
+            const dd=parseLocal(dISO), ps=parseLocal(r.start_date_iso), pe=parseLocal(r.end_date_iso)
+            if(dd>=ps && dd<=pe){
+              const where = sameDay(r.start_date_iso,dISO) ? 'start' : sameDay(r.end_date_iso,dISO) ? 'end' : 'mid-trip'
+              add(`Conflict • Store blocked on ${where} • ${r.listings?.title || `Listing #${r.listing_id}`}`, true)
+            }
           }
         }
       }
     }
 
-    // month navigation (buttons)
+    /* pending quick action */
+    function updatePendingCount(){
+      const count = (myLending||[]).filter(r => (r.status||'').toLowerCase()==='pending').length
+      pendingCountEl.textContent = count
+    }
+    const pendingModal = $('#pending-modal')
+    const pendingTbody = $('#pending-tbody')
+    function openPendingModal(){
+      pendingTbody.innerHTML=''
+      const pending = (myLending||[]).filter(r => (r.status||'').toLowerCase()==='pending')
+      if(!pending.length){
+        const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=5; td.style.padding='.75rem'; td.textContent='No pending reservations found in this range.'; tr.appendChild(td); pendingTbody.appendChild(tr)
+      }else{
+        for(const r of pending){
+          const tr=document.createElement('tr')
+          tr.innerHTML = `
+            <td style="padding:.5rem; border-bottom:1px solid #eee;">${r.listings?.title || `Listing #${r.listing_id}`}</td>
+            <td style="padding:.5rem; border-bottom:1px solid #eee;">${fmtHuman(r.start_date_iso)}${r.start_time?` • ${timeHuman(r.start_time)}`:''}</td>
+            <td style="padding:.5rem; border-bottom:1px solid #eee;">${fmtHuman(r.end_date_iso)}${r.end_time?` • ${timeHuman(r.end_time)}`:''}</td>
+            <td style="padding:.5rem; border-bottom:1px solid #eee;">${r.renter_id || ''}</td>
+            <td style="padding:.5rem; border-bottom:1px solid #eee;">
+              <button data-act="approve" data-id="${r.id}" class="btn green" style="padding:.35rem .5rem;">Approve</button>
+              <button data-act="deny" data-id="${r.id}" class="btn red" style="padding:.35rem .5rem;">Deny</button>
+            </td>`
+          pendingTbody.appendChild(tr)
+        }
+      }
+      pendingModal.showModal()
+    }
+    pendingBtn.addEventListener('click', openPendingModal)
+    pendingTbody.addEventListener('click', async (e)=>{
+      const b=e.target.closest('button'); if(!b) return
+      const id=b.dataset.id, act=b.dataset.act
+      try{
+        const newStatus = act==='approve' ? STATUS_APPROVED : STATUS_DECLINED
+        const { error } = await supabase.from('reservations').update({ status:newStatus }).eq('id', id)
+        if(error) throw error
+        await loadMonthData(); render()
+      }catch(err){ alert('Could not update reservation: '+(err?.message||err)) }
+    })
+    $('#pending-close').addEventListener('click', ()=>pendingModal.close())
+
+    /* nav */
     prevBtn.addEventListener('click', ()=>{ view.setMonth(view.getMonth()-1); refresh() })
     nextBtn.addEventListener('click', ()=>{ view.setMonth(view.getMonth()+1); refresh() })
-
-    // jump selects (instant navigation)
-    function onJumpChange(){
-      const y = parseInt(jumpYear.value,10)
-      const m = parseInt(jumpMonth.value,10)
-      if (!Number.isNaN(y) && !Number.isNaN(m)) { view = new Date(y, m, 1); refresh() }
-    }
+    function onJumpChange(){ const y=parseInt(jumpYear.value,10), m=parseInt(jumpMonth.value,10); if(!Number.isNaN(y)&&!Number.isNaN(m)){ view=new Date(y,m,1); refresh() } }
     jumpMonth.addEventListener('change', onJumpChange)
     jumpYear.addEventListener('change', onJumpChange)
-    jumpToday.addEventListener('click', ()=>{
-      const t = new Date(); view = new Date(t.getFullYear(), t.getMonth(), 1); refresh()
-    })
+    jumpToday.addEventListener('click', ()=>{ const t=new Date(); view=new Date(t.getFullYear(), t.getMonth(), 1); refresh() })
+    document.addEventListener('keydown', (e)=>{ if(e.key==='ArrowLeft'){ view.setMonth(view.getMonth()-1); refresh() } else if(e.key==='ArrowRight'){ view.setMonth(view.getMonth()+1); refresh() } else if(e.key==='Home'){ const t=new Date(); view=new Date(t.getFullYear(), t.getMonth(), 1); refresh() } })
 
-    // keyboard
-    document.addEventListener('keydown', (e)=>{
-      if (e.key === 'ArrowLeft'){ view.setMonth(view.getMonth()-1); refresh() }
-      else if (e.key === 'ArrowRight'){ view.setMonth(view.getMonth()+1); refresh() }
-      else if (e.key === 'Home'){ const t=new Date(); view = new Date(t.getFullYear(), t.getMonth(), 1); refresh() }
-    })
-
-    // change-limit guard
+    /* change window guard + helpers shared by promo ops */
     function withinChangeWindow(dISO){
-      const today = new Date(); today.setHours(0,0,0,0)
-      const limit = addMonths(today, MAX_CHANGE_MONTHS)
+      const today=new Date(); today.setHours(0,0,0,0)
+      const limit=addMonths(today, MAX_CHANGE_MONTHS)
       return parseLocal(dISO) <= new Date(limit.getFullYear(), limit.getMonth()+1, 0)
     }
     function guardSelectionWithinWindow(){
-      if (!selection.size) return true
-      const bad = Array.from(selection).some(d => !withinChangeWindow(d))
-      if (bad){ alert(`Edits are limited to ${MAX_CHANGE_MONTHS} months ahead. Viewing is fine; bulk rules will apply beyond.`); return false }
+      if(!selection.size) return true
+      const bad = Array.from(selection).some(d=>!withinChangeWindow(d))
+      if(bad){ alert(`Edits are limited to ${MAX_CHANGE_MONTHS} months ahead.`); return false }
       return true
     }
-
-    // utilities: selection → consecutive ranges
     function selectionRanges(){
-      const arr = Array.from(selection).sort()
-      if (!arr.length) return []
-      const out=[]
-      let start = arr[0], prev = arr[0]
-      for (let i=1;i<arr.length;i++){
-        const cur = arr[i]
-        const diff = (parseLocal(cur) - parseLocal(prev)) / (1000*60*60*24)
-        if (diff === 1) { prev = cur; continue }
-        out.push([start, prev]); start = cur; prev = cur
-      }
-      out.push([start, prev])
-      return out
+      const arr=Array.from(selection).sort(); if(!arr.length) return []
+      const out=[]; let start=arr[0], prev=arr[0]
+      for(let i=1;i<arr.length;i++){ const cur=arr[i]; const diff=(parseLocal(cur)-parseLocal(prev))/(1000*60*60*24); if(diff===1){ prev=cur; continue } out.push([start,prev]); start=cur; prev=cur }
+      out.push([start,prev]); return out
     }
 
-    function ownedIds(){ return (myListings || []).map(l => l.id) }
-
-    // ----- Shop-wide blackout ops (duplicate-aware) -----
-    async function upsertBlackout(kind) {
-      if (!selection.size) { alert('Select one or more dates on the calendar.'); return }
-      if (!guardSelectionWithinWindow()) return
-
-      const ids = ownedIds()
-      if (!ids.length) { alert('No listings available.'); return }
-
-      const selectedDates = Array.from(selection).sort()
-
-      try {
-        const { data: existing, error: exErr } = await supabase
-          .from('listing_blackouts')
-          .select('listing_id,start_date,kind')
-          .in('listing_id', ids)
-          .in('start_date', selectedDates)
-          .eq('kind', kind)
-        if (exErr) console.warn('Duplicate check error:', exErr)
-
-        const existingSet = new Set((existing || []).map(r => `${r.listing_id}_${r.start_date}_${r.kind}`))
-        const rows = []
-        for (const id of ids) for (const d of selectedDates) {
-          const key = `${id}_${d}_${kind}`
-          if (!existingSet.has(key)) rows.push({ listing_id:id, start_date:d, end_date:d, kind })
-        }
-
-        if (!rows.length) {
-          alert('One or more selected dates are already marked for that blackout type. Nothing to add.')
-        } else {
-          const { error } = await supabase
-            .from('listing_blackouts')
-            .upsert(rows, { onConflict:'listing_id,start_date,end_date,kind' })
-          if (error) throw error
+    /* blackout ops */
+    async function upsertBlackout(kind){
+      if(!selection.size){ alert('Select one or more dates on the calendar.'); return }
+      if(!guardSelectionWithinWindow()) return
+      const ids=ownedIds(); if(!ids.length){ alert('No listings available.'); return }
+      const selectedDates=Array.from(selection).sort()
+      try{
+        const { data: existing } = await supabase.from('listing_blackouts').select('listing_id,start_date,kind').in('listing_id', ids).in('start_date', selectedDates).eq('kind', kind)
+        const existingSet=new Set((existing||[]).map(r=>`${r.listing_id}_${r.start_date}_${r.kind}`))
+        const rows=[]
+        for(const id of ids) for(const d of selectedDates){ const key=`${id}_${d}_${kind}`; if(!existingSet.has(key)) rows.push({ listing_id:id, start_date:d, end_date:d, kind }) }
+        if(!rows.length){ alert('One or more selected dates are already marked for that blackout type. Nothing to add.') }
+        else{
+          const { error } = await supabase.from('listing_blackouts').upsert(rows, { onConflict:'listing_id,start_date,end_date,kind' })
+          if(error) throw error
           alert('Blackout(s) saved. Existing dates were ignored.')
         }
-      } catch (e) {
-        console.error(e); alert('Could not save blackout: ' + (e?.message || e))
-        return
-      }
-
-      selection.clear()
-      await loadMonthData(); render()
+      }catch(e){ console.error(e); alert('Could not save blackout: '+(e?.message||e)); return }
+      selection.clear(); await loadMonthData(); render()
     }
-
-    async function removeBlackout(kind) {
-      if (!selection.size) { alert('Select one or more dates on the calendar.'); return }
-      if (!guardSelectionWithinWindow()) return
-
-      const ids = ownedIds()
-      if (!ids.length) { alert('No listings available.'); return }
-      const dates = Array.from(selection).sort()
-      try {
-        await supabase.from('listing_blackouts')
-          .delete()
-          .in('listing_id', ids)
-          .in('start_date', dates)
-          .eq('kind', kind)
-
-        selection.clear()
-        await loadMonthData(); render()
-        alert('Removed blackout entries for the selected dates.')
-      } catch (e) {
-        console.error(e); alert('Could not remove entries: ' + (e?.message || e))
-      }
+    async function removeBlackout(kind){
+      if(!selection.size){ alert('Select one or more dates on the calendar.'); return }
+      if(!guardSelectionWithinWindow()) return
+      const ids=ownedIds(); if(!ids.length){ alert('No listings available.'); return }
+      const dates=Array.from(selection).sort()
+      try{
+        await supabase.from('listing_blackouts').delete().in('listing_id', ids).in('start_date', dates).eq('kind', kind)
+        selection.clear(); await loadMonthData(); render(); alert('Removed blackout entries for the selected dates.')
+      }catch(e){ console.error(e); alert('Could not remove entries: '+(e?.message||e)) }
     }
-
     $('#btn-unavail-add').addEventListener('click',  ()=>upsertBlackout('owner_unavailable'))
     $('#btn-unavail-remove').addEventListener('click',()=>removeBlackout('owner_unavailable'))
     $('#btn-block-add').addEventListener('click',     ()=>upsertBlackout('store_blocked'))
     $('#btn-block-remove').addEventListener('click',  ()=>removeBlackout('store_blocked'))
 
-    // ----- Promotions -----
-    const promoModal = $('#promo-modal')
+    /* promos */
+    const promoModal=$('#promo-modal')
     $('#btn-promo-add').addEventListener('click', ()=>{
-      const y = view.getFullYear(), m = view.getMonth()
-      const dates = Array.from(selection).sort()
-      const start = dates[0] || iso(y,m,1)
-      const end   = dates[dates.length-1] || iso(y,m,daysInMonth(view))
-      $('#promo-start').value = start
-      $('#promo-end').value = end
+      const y=view.getFullYear(), m=view.getMonth()
+      const dates=Array.from(selection).sort()
+      const start=dates[0]||iso(y,m,1)
+      const end=dates[dates.length-1]||iso(y,m,daysInMonth(view))
+      $('#promo-start').value=start; $('#promo-end').value=end
       promoModal.showModal()
     })
     $('#promo-cancel').addEventListener('click', ()=>promoModal.close())
-
     $('#promo-save').addEventListener('click', async ()=>{
-      try {
-        const type  = $('#promo-type').value
-        const start = $('#promo-start').value
-        const end   = $('#promo-end').value
-
-        const today = new Date(); today.setHours(0,0,0,0)
-        const limEnd = new Date(addMonths(today, MAX_CHANGE_MONTHS).getFullYear(), addMonths(today, MAX_CHANGE_MONTHS).getMonth()+1, 0)
-        if (parseLocal(end) > limEnd) return alert(`Promotions cannot be saved beyond ${MAX_CHANGE_MONTHS} months ahead.`)
-
-        const t1v   = parseFloat($('#t1-value').value) || null
-        const t1min = parseInt($('#t1-min').value,10) || null
-        const t1max = parseInt($('#t1-max').value,10) || null
-        const t2v   = parseFloat($('#t2-value').value) || null
-        const t2min = parseInt($('#t2-min').value,10) || null
-        const t2max = parseInt($('#t2-max').value,10) || null
-
-        if (!start || !end) return alert('Choose a promo date range.')
-
-        const ids = (myListings||[]).map(l => l.id)
-        if (!ids.length) return alert('No listings available.')
-
-        // replace overlapping promos for these listings+range
-        await supabase.from('listing_promotions')
-          .delete()
-          .in('listing_id', ids)
-          .lte('start_date', end)
-          .gte('end_date', start)
-
-        const rows = ids.map(id => ({
-          listing_id: id,
-          kind: type,
-          tier1_value: t1v,
-          tier1_min_days: t1min,
-          tier1_max_days: t1max,
-          tier2_value: t2v,
-          tier2_min_days: t2min,
-          tier2_max_days: t2max,
-          start_date: start,
-          end_date: end
-        }))
+      try{
+        const type=$('#promo-type').value, start=$('#promo-start').value, end=$('#promo-end').value
+        const today=new Date(); today.setHours(0,0,0,0)
+        const limEnd=new Date(addMonths(today, MAX_CHANGE_MONTHS).getFullYear(), addMonths(today, MAX_CHANGE_MONTHS).getMonth()+1, 0)
+        if(parseLocal(end)>limEnd) return alert(`Promotions cannot be saved beyond ${MAX_CHANGE_MONTHS} months ahead.`)
+        const t1v=parseFloat($('#t1-value').value)||null, t1min=parseInt($('#t1-min').value,10)||null, t1max=parseInt($('#t1-max').value,10)||null
+        const t2v=parseFloat($('#t2-value').value)||null, t2min=parseInt($('#t2-min').value,10)||null, t2max=parseInt($('#t2-max').value,10)||null
+        if(!start||!end) return alert('Choose a promo date range.')
+        const ids=ownedIds(); if(!ids.length) return alert('No listings available.')
+        await supabase.from('listing_promotions').delete().in('listing_id', ids).lte('start_date', end).gte('end_date', start)
+        const rows=ids.map(id=>({ listing_id:id, kind:type, tier1_value:t1v, tier1_min_days:t1min, tier1_max_days:t1max, tier2_value:t2v, tier2_min_days:t2min, tier2_max_days:t2max, start_date:start, end_date:end }))
         const { error } = await supabase.from('listing_promotions').insert(rows)
-        if (error) throw error
-
-        promoModal.close()
-        alert('Promotional pricing saved.')
-        await loadMonthData(); render()
-      } catch (e) {
-        console.warn('Promo save failed (OK to ignore if table not present):', e)
-        alert('Could not save promo. Ensure the listing_promotions table schema/policies are in place.')
-      }
+        if(error) throw error
+        promoModal.close(); alert('Promotional pricing saved.'); await loadMonthData(); render()
+      }catch(e){ alert('Could not save promo. Ensure the listing_promotions table exists with policies.'); }
     })
 
-    // Trim/remove promotions in selected ranges (split/shorten)
     async function trimPromotionsInRanges(){
-      if (!selection.size) return alert('Select one or more dates to trim/remove promotions.')
-      if (!guardSelectionWithinWindow()) return
-      const ids = (myListings||[]).map(l => l.id)
-      if (!ids.length) return alert('No listings available.')
-      const ranges = (()=>{ const arr=[...selection].sort(); if(!arr.length) return []; const out=[]; let s=arr[0], p=arr[0]; for(let i=1;i<arr.length;i++){ const c=arr[i]; const diff=(parseLocal(c)-parseLocal(p))/(1000*60*60*24); if(diff===1){ p=c; continue } out.push([s,p]); s=c; p=c } out.push([s,p]); return out })()
-      try {
-        for (const [ss,se] of ranges){
+      if(!selection.size) return alert('Select one or more dates to trim/remove promotions.')
+      if(!guardSelectionWithinWindow()) return
+      const ids=ownedIds(); if(!ids.length) return alert('No listings available.')
+      const ranges=selectionRanges()
+      try{
+        for(const [ss,se] of ranges){
           const { data: promos } = await supabase
             .from('listing_promotions')
             .select('id,listing_id,start_date,end_date,kind,tier1_value,tier1_min_days,tier1_max_days,tier2_value,tier2_min_days,tier2_max_days')
-            .in('listing_id', ids)
-            .lte('start_date', se)
-            .gte('end_date', ss)
-
-          for (const p of (promos||[])){
-            const ps = p.start_date.slice(0,10), pe = p.end_date.slice(0,10)
-            if (ss <= ps && se >= pe){ await supabase.from('listing_promotions').delete().eq('id', p.id); continue }
-            if (ss > ps && se < pe){
-              await supabase.from('listing_promotions').update({ end_date: addDaysISO(ss, -1) }).eq('id', p.id)
-              const rightStart = addDaysISO(se, 1)
+            .in('listing_id', ids).lte('start_date', se).gte('end_date', ss)
+          for(const p of (promos||[])){
+            const ps=p.start_date.slice(0,10), pe=p.end_date.slice(0,10)
+            if(ss<=ps && se>=pe){ await supabase.from('listing_promotions').delete().eq('id', p.id); continue }
+            if(ss>ps && se<pe){
+              await supabase.from('listing_promotions').update({ end_date: addDaysISO(ss,-1) }).eq('id', p.id)
               await supabase.from('listing_promotions').insert({
-                listing_id: p.listing_id, kind: p.kind,
+                listing_id:p.listing_id, kind:p.kind,
                 tier1_value:p.tier1_value, tier1_min_days:p.tier1_min_days, tier1_max_days:p.tier1_max_days,
                 tier2_value:p.tier2_value, tier2_min_days:p.tier2_min_days, tier2_max_days:p.tier2_max_days,
-                start_date: rightStart, end_date: pe
+                start_date:addDaysISO(se,1), end_date:pe
               })
               continue
             }
-            if (ss <= ps && se < pe && se >= ps){ const newStart = addDaysISO(se, 1); await supabase.from('listing_promotions').update({ start_date: newStart }).eq('id', p.id); continue }
-            if (ss > ps && ss <= pe && se >= pe){ const newEnd = addDaysISO(ss, -1); await supabase.from('listing_promotions').update({ end_date: newEnd }).eq('id', p.id); continue }
+            if(ss<=ps && se<pe && se>=ps){ await supabase.from('listing_promotions').update({ start_date: addDaysISO(se,1) }).eq('id', p.id); continue }
+            if(ss>ps && ss<=pe && se>=pe){ await supabase.from('listing_promotions').update({ end_date: addDaysISO(ss,-1) }).eq('id', p.id); continue }
           }
         }
-        selection.clear()
-        await loadMonthData(); render()
-        alert('Promotions trimmed.')
-      } catch (e) {
-        console.error(e); alert('Could not trim promotions: ' + (e?.message || e))
-      }
+        selection.clear(); await loadMonthData(); render(); alert('Promotions trimmed.')
+      }catch(e){ alert('Could not trim promotions: '+(e?.message||e)) }
     }
     $('#btn-promo-remove').addEventListener('click', trimPromotionsInRanges)
 
-    async function refresh(){ await loadMonthData(); render() }
+    /* ====== WEEKLY HOURS actions ====== */
+    function selectedDOW(){ return Array.from(wkDOW.querySelectorAll('input[type="checkbox"]:checked')).map(i=>parseInt(i.dataset.dow,10)) }
+    btnRefreshWeekly.addEventListener('click', async ()=>{ await loadWeeklyHours(); renderDow(); })
 
-    // allow ?focus=YYYY-MM-DD and ?listing=<id>
-    const focus = params.get('focus')
-    if (focus && /^\d{4}-\d{2}-\d{2}$/.test(focus)) {
-      const f = parseLocal(focus)
-      if (!Number.isNaN(f.getTime())) view = new Date(f.getFullYear(), f.getMonth(), 1)
+    async function countFutureOverridesForDOW(dows){
+      try{
+        const todayISO = toLocalISO(new Date())
+        const { data } = await supabase.from('shop_hours_overrides')
+          .select('date').eq('owner_id', userId).gte('date', todayISO)
+        let cnt=0
+        for(const r of (data||[])){ const dw=parseLocal(r.date).getDay(); if(dows.includes(dw)) cnt++ }
+        return cnt
+      }catch{ return 0 }
     }
 
-    seedYearSelect()
-    syncJumpControls()
-    await refresh()
+    btnSaveWeekly.addEventListener('click', async ()=>{
+      if(!(isLender||isAdmin)) return alert('Only lenders can set hours.')
+      const dows = selectedDOW()
+      if(!dows.length) return alert('Select at least one day (Sun–Sat) to apply hours.')
+      let open=wkOpen.value, close=wkClose.value
+      if(open==='24h' || close==='24h'){ open='00:00'; close='23:59' }
+      if(open && close){
+        const affected = await countFutureOverridesForDOW(dows)
+        weeklyMsg.textContent = affected
+          ? `You’re updating weekly hours for ${dows.map(d=>DOW[d]).join(', ')}. There are ${affected} future date overrides on these weekdays. Keep them, or remove them so weekly hours fully apply.`
+          : `You’re updating weekly hours for ${dows.map(d=>DOW[d]).join(', ')}.`
+        weeklyConfirm.showModal()
+        const decision = await new Promise(res=>{
+          weeklyConfirm.addEventListener('close', ()=>res(weeklyConfirm.returnValue), { once:true })
+        })
+
+        try{
+          let row
+          try{
+            const { data } = await supabase.from('shop_hours_weekly').select('*').eq('owner_id', userId).single()
+            row = data || { owner_id:userId }
+          }catch{ row = { owner_id:userId } }
+
+          const map = [
+            ['sun_open','sun_close','sun_closed'],
+            ['mon_open','mon_close','mon_closed'],
+            ['tue_open','tue_close','tue_closed'],
+            ['wed_open','wed_close','wed_closed'],
+            ['thu_open','thu_close','thu_closed'],
+            ['fri_open','fri_close','fri_closed'],
+            ['sat_open','sat_close','sat_closed'],
+          ]
+          for(const d of dows){
+            row[map[d][0]] = open
+            row[map[d][1]] = close
+            row[map[d][2]] = false
+          }
+          const { error } = await supabase.from('shop_hours_weekly').upsert(row, { onConflict:'owner_id' })
+          if(error) throw error
+
+          if(decision==='override' && affected>0){
+            const todayISO=toLocalISO(new Date())
+            const { data: allov } = await supabase.from('shop_hours_overrides')
+              .select('date').eq('owner_id', userId).gte('date', todayISO)
+            const toDelete = (allov||[]).filter(r => dows.includes(parseLocal(r.date).getDay())).map(r=>r.date)
+            if(toDelete.length){
+              await supabase.from('shop_hours_overrides').delete().eq('owner_id', userId).in('date', toDelete)
+            }
+          }
+
+          alert('Weekly hours saved.')
+          await loadWeeklyHours(); render()
+        }catch(e){
+          alert('Could not save weekly hours. Ensure table shop_hours_weekly exists and RLS allows updates.')
+        }
+      }
+    })
+
+    /* OVERRIDES actions */
+    $('#btn-save-overrides').addEventListener('click', async ()=>{
+      if(!(isLender||isAdmin)) return alert('Only lenders can set hours.')
+      if(!selection.size) return alert('Select one or more dates.')
+      try{
+        const open = (ov247.checked || ovOpen.value==='24h' || ovClose.value==='24h') ? '00:00' : ovOpen.value
+        const close = (ov247.checked || ovOpen.value==='24h' || ovClose.value==='24h') ? '23:59' : ovClose.value
+        const rows=[]
+        for(const d of Array.from(selection).sort()){
+          rows.push({ owner_id:userId, date:d, open_time:open, close_time:close, is_closed:false })
+        }
+        const { error } = await supabase.from('shop_hours_overrides').upsert(rows, { onConflict:'owner_id,date' })
+        if(error) throw error
+        alert('Custom hours saved for selected dates.')
+        selection.clear(); await loadMonthData(); render()
+      }catch(e){ alert('Could not save custom hours. Ensure table shop_hours_overrides exists and RLS allows updates.') }
+    })
+    $('#btn-remove-overrides').addEventListener('click', async ()=>{
+      if(!(isLender||isAdmin)) return alert('Only lenders can set hours.')
+      if(!selection.size) return alert('Select one or more dates.')
+      try{
+        const dates=Array.from(selection).sort()
+        await supabase.from('shop_hours_overrides').delete().eq('owner_id', userId).in('date', dates)
+        alert('Removed custom hours for the selected dates.')
+        selection.clear(); await loadMonthData(); render()
+      }catch(e){ alert('Could not remove overrides: '+(e?.message||e)) }
+    })
+
+    async function refresh(){ await loadMonthData(); render() }
+
+    const params=new URLSearchParams(location.search); const focus=params.get('focus')
+    if(focus && /^\d{4}-\d{2}-\d{2}$/.test(focus)){ const f=parseLocal(focus); if(!Number.isNaN(f.getTime())) view=new Date(f.getFullYear(), f.getMonth(), 1) }
+
+    seedYearSelect(); await loadWeeklyHours(); renderDow(); await refresh()
     supabase.auth.onAuthStateChange(async ()=>{ await refresh() })
   </script>
 
